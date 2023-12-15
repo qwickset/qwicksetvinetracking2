@@ -12,8 +12,9 @@ function startup() {
     toast('Loading Vine config and menu','Vine Menu Status',3);
 
     var mainMenu = SpreadsheetApp.getUi().createMenu('🍃Vine');
-    mainMenu.addItem("Bulk Input","showBulkInput");
+    //mainMenu.addItem("Bulk Input","showBulkInput");
     mainMenu.addItem("File Import","showImport");
+    mainMenu.addItem("Show Review Form","showReviewForm");
     mainMenu.addSeparator();
     mainMenu.addItem("Future Features","showFutureFeatures");
     mainMenu.addSeparator();
@@ -29,6 +30,44 @@ function startup() {
     this.alert('Hardstop Error',msg,ui.ButtonSet.OK);      
   }
 }
+function getItemRowData(endColLetter){
+  console.log(`getItemRowData('${endColLetter}')`);
+  var activeSheet=SpreadsheetApp.getActiveSheet();
+  var range=activeSheet.getActiveRange();
+  var row=range.getRowIndex();
+  var a1=`A${row}:${endColLetter}${row}`;
+  console.log(`     a1='${a1})`);
+  var dataRange=activeSheet.getRange(a1);
+  var values=dataRange.getValues();
+  console.log(`values...`);
+  for(var i=0;i<values.length;i++){
+    console.log(`     [0][${i}]=${values[0][i]}`);
+  }
+  return JSON.stringify(values);
+}
+function getCurrentItem(){
+  var activeSheet=SpreadsheetApp.getActiveSheet();
+  var activeSheetName=activeSheet.getName();
+  var cell=activeSheet.getActiveCell();
+  var range=activeSheet.getActiveRange();
+  var row=range.getRowIndex();
+  var col=range.getColumnIndex();
+  var width=range.getWidth();
+  var height=range.getHeight();
+  var A1not = range.getA1Notation();
+  return {
+      activeSheet:activeSheet,
+      activeSheetName:activeSheetName,
+      cell:cell,
+      range:range,
+      row:row,
+      col:col,
+      width:width,
+      height:height,
+      A1not:A1not
+  };        
+}
+
 function regexKeyValue(key,value){
   var result;
   if (key.toLowerCase()==='baseamzurl'){
@@ -54,12 +93,16 @@ function showFutureFeatures() {
   var widget = HtmlService.createHtmlOutputFromFile("FutureFeatures.html").setWidth(500).setHeight(300);
   SpreadsheetApp.getUi().showModalDialog(widget, " ");
 }
-function showBulkInput() {
-  var widget = HtmlService.createHtmlOutputFromFile("BulkInput.html").setWidth(1000).setHeight(1000);
-  SpreadsheetApp.getUi().showModalDialog(widget, " ");
-}
+//function showBulkInput() {
+//  var widget = HtmlService.createHtmlOutputFromFile("BulkInput.html").setWidth(1000).setHeight(1000);
+//  SpreadsheetApp.getUi().showModalDialog(widget, " ");
+//}
 function showImport() {
   var widget = HtmlService.createHtmlOutputFromFile("Import.html").setWidth(1000).setHeight(1000);
+  SpreadsheetApp.getUi().showModalDialog(widget, " ");
+}
+function showReviewForm() {
+  var widget = HtmlService.createHtmlOutputFromFile("ReviewForm.html").setWidth(1000).setHeight(1000);
   SpreadsheetApp.getUi().showModalDialog(widget, " ");
 }
 
@@ -146,11 +189,11 @@ function getProductImageURL(asin) {
     src:"https://ws-na.amazon-adsystem.com/widgets/q?_encoding=UTF8&MarketPlace=US&ASIN=" + asin + "&ServiceVersion=20070822&ID=AsinImage&WS=1&Format=_SL150_"};
 }
 function toast(message){
-      SpreadsheetApp.getActiveSpreadsheet().toast(message);
-  }
+    SpreadsheetApp.getActiveSpreadsheet().toast(message);
+}
 function toast(message,title){
-      SpreadsheetApp.getActiveSpreadsheet().toast(message,title);
-  }
+    SpreadsheetApp.getActiveSpreadsheet().toast(message,title);
+}
 function toast(message,title,timeoutSeconds){
-      SpreadsheetApp.getActiveSpreadsheet().toast(message,title,timeoutSeconds);
-  }
+    SpreadsheetApp.getActiveSpreadsheet().toast(message,title,timeoutSeconds);
+}

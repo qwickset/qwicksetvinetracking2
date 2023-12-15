@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<!--
+      ADDITEMFORM.HTML
+-->
+<html>
+
+<head>
+  <base target="_top">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;700;900&display=swap');
+
+    *,
+    body {
+      font-family: 'Poppins', sans-serif;
+      font-weight: 400;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    html,
+    body {
+      height: 100%;
+      background-color: #FFFFFF;
+      overflow: hidden;
+    }
+
+    .form1{
+      display:none;
+    }
+
+    .form-holder {
+      display: flex;
+      width: 100%;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
+
+    .form-holder .form-content {
+      position: relative;
+      text-align: center;
+      display: -webkit-box;
+      display: -moz-box;
+      display: -ms-flexbox;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-justify-content: center;
+      justify-content: center;
+      -webkit-align-items: center;
+      align-items: center;
+      width:100%;
+    }
+
+    .form-content .form-items {
+      border: 3px solid #fff;
+      display: inline-block;
+      width: 100%;
+      -webkit-border-radius: 10px;
+      -moz-border-radius: 10px;
+      border-radius: 10px;
+      text-align: left;
+      -webkit-transition: all 0.4s ease;
+      transition: all 0.4s ease;
+    }
+
+    .form-content h3 {
+      text-align: left;
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+
+    .form-content p {
+      text-align: left;
+      font-size: 17px;
+      font-weight: 300;
+      line-height: 20px;
+      margin-bottom: 30px;
+    }
+
+
+    .form-content input[type=text],
+    .form-content input[type=date] {
+      width: 100%;
+      /*padding: 9px 20px;*/
+      text-align: left;
+      border: 1;
+      outline: 0;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 300;
+      -webkit-transition: all 0.3s ease;
+      transition: all 0.3s ease;
+      /*margin-top: 16px;*/
+    }
+
+/*
+    .form-content textarea {
+      position: static !important;
+      width: 100%;
+      padding: 8px 20px;
+      border-radius: 6px;
+      text-align: left;
+      border: 1;
+      font-size: 15px;
+      font-weight: 300;
+      outline: none;
+      resize: none;
+      height: 120px;
+      -webkit-transition: none;
+      transition: none;
+      margin-bottom: 14px;
+    }
+*/
+   
+    .formLabel{
+      padding-bottom:15px;
+      color:rgb(53, 133, 16);
+    }
+    .mv-up {
+      margin-top: -9px !important;
+      margin-bottom: 8px !important;
+    }
+
+    button {
+      margin: 10px;
+    }
+
+    .btn-secondary {
+      float: right;
+    }
+    .error{
+      color:red;
+      margin-left:5px;
+    }
+    #itemImage{
+      border:2px solid black;
+      height:50px;
+      display:none;
+      position:relative;
+      width:50px;
+    }
+    #itemImage:before {
+      background: #f1f1f1;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      content: '\1F517' ' broken image of 'attr(alt);
+      display: block;
+      left: 0;
+      padding: 10px;
+      position: absolute;
+      top: -10px;
+      width: 100%;
+    }
+    #overlay {
+      position:fixed;
+      left:0;
+      top:0;
+      width:100vw;
+      height:100vh;
+      display:none;
+      background-color:#000;
+      opacity:0.5;
+    }    
+    #spinnerContainer{
+      display:none;
+    }
+		.spinners{
+			position: absolute;
+			left: 50%;
+			top: 50%;
+			transform: translate(-50%,-50%);
+			height: 200px;
+			width: 200px;
+		}
+		.spin1,.spin2,.spin3{
+			position: absolute;
+
+			transform: translate(-50%,-50%);
+			border: 3px solid #eee;
+			border-radius: 100%;
+			border-top: 3px solid #099078;
+			box-shadow: 0px 0px 18px 7px #0084723d
+
+		}
+		.spin1{
+			top: 5%;
+			left: 5%;
+			height: 180px;
+			width: 180px;
+			animation: animate 3s linear infinite;
+		}
+		.spin2{
+			top: 15%;
+			left: 15%;
+			height: 140px;
+			width: 140px;
+			animation: animate 2s linear infinite;
+		}
+		.spin3{
+			top: 25%;
+			left: 25%;
+			height: 100px;
+			width: 100px;
+			animation: animate 1s linear infinite;
+		}
+		@keyframes animate{
+			0%{transform: rotate(0deg);}
+			100%{transform: rotate(360deg);}
+		}
+    .comm{
+      text-align:center;
+      margin-top:10px;
+    }
+    #formAPINButton{
+      display:none;
+    }
+    #formSubmitButton{
+      margin-top:5px;
+      display:none;
+      float:right;
+    }
+    .clipboardCopy{
+      margin-left:10px;
+    }
+
+  </style>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"
+    integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.1/css/fontawesome.min.css" integrity="sha384-QYIZto+st3yW+o8+5OHfT6S482Zsvz2WfOzpFSXMF9zqeLcFV0/wlZpMtyFcZALm" crossorigin="anonymous">
+  <script>
+    var hasAPI=false;
+    var editItem;
+    var editItemRow;
+    var elements=[
+      {key:'TITLE',column:'W',label:'Review Title',type:'string',placeholder:'e.g. This is my review title', copy:true},
+      {key:'DETAIL',column:'X',label:'Review Detail',type:'textarea',rows:10,placeholder:'e.g. This is my review detail',copy:true},
+      {key:'STARS',column:'S',label:'Stars',type:'numeric',min:1,max:5,placeholder:'star rating'},
+      {key:'PHOTOCOUNT',column:'T',label:'Photos',type:'numeric',min:0,max:999,placeholder:'Photos in review'},
+      {key:'VIDEOCOUNT',column:'U',label:'Videos',type:'numeric',min:0,max:1,placeholder:'Videos in review'},
+      {key:'SUBMITTEDDATE',column:'M',label:'Submitted Date:',type:'date',placeholder:'Review submitted'},
+      {key:'ACCEPTEDDATE',column:'N',label:'Accepted Date',type:'date',placeholder:'Review accepted'},
+      {key:'REJECTEDDATE',column:'O',label:'RejectedDate',type:'date',placeholder:'Review rejected'},
+      {key:'CANCELEDDATE',column:'P',label:'Canceled Date',type:'date',placeholder:'Review canceled'},
+      {key:'NOTES',column:'Y',label:'Notes',type:'textarea',rows:10,placeholder:'e.g. Personal notes...'},
+    ];
+    var currencyFormatter = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    });
+    $(function(){
+      showSpinner('Loading Form...');
+      //var fromCol = columns.reduce(function(prev,curr){return prev.column<curr.column?prev:cur;});
+      var rightestColumn = elements.reduce(function(prev,curr){return (prev && prev.column>curr.column)?prev:curr;});
+      google.script.run.withSuccessHandler(populateForm).getItemRowData(rightestColumn.column);
+    });
+    function populateForm(currentInfoJSON){
+      var currentInfo=JSON.parse(currentInfoJSON);
+      console.log(`populateForm(${currentInfo})`);
+      /*
+        activeSheet:activeSheet,
+        activeSheetName:activeSheetName,
+        cell:cell,
+        range:range,
+        row:row,
+        col:col,
+        width:width,
+        height:height,
+        A1not:A1not      
+      */
+      for (var i = 0; i < elements.length; i++) {
+        var element=elements[i];
+        var key=element.key;
+        var colIndex=element.column.charCodeAt(0)-65;  //A=1, B=2 -- only supports A-Z
+        var value = currentInfo[0][colIndex];
+        console.log(`${key} from form is ${value}`);
+        addFormItem(element,value);
+      }     
+      showSubmitButton(true);
+      hideSpinner(); 
+    }
+    function addFormItem(element,value){
+      console.log(`addFormItem(${JSON.stringify(element)},'${value}')`);
+      var colWidth=12;
+      switch (element.type) {
+        case 'date':
+          colWidth=6;
+          var dt = new Date(value);
+          console.log(`     converted to date -> ${JSON.stringify(dt)}`);
+          var m = (dt.getUTCMonth()+1).toString().padStart(2,'0');;
+          var d = dt.getUTCDate().toString().padStart(2,'0');
+          var y = dt.getUTCFullYear();
+          value = `${y}-${m}-${d}`;
+
+          break;
+
+        case 'numeric':
+          colWidth=3;
+          break;
+      
+        default:
+          break;
+      }
+      var html = `<div class='col-${colWidth}'>`;
+      if (element.copy){
+        html+=`<div class='clipboardCopy'><a href="#" onclick="copyToClipboard('${element.key}')"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-copy" viewBox="0 0 16 16">
+  <path fill-rule="evenodd" d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h1v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1v1z"/>
+</svg></a></div>`
+      }
+      switch (element.type) {
+        case 'string':
+          html+=`<input type="text" class="form-control" id="${element.key}" placeholder="${element.placeholder}" value="${value}">\n`;
+          html+=`<label class="formLabel" for="floatingInputValue">${element.label}</label>\n`;
+          break;
+        case 'date':
+          html+=`<input class="form-control" type="date" id="${element.key}" name="${element.key}" value="${value}" placeholder="${element.placeholder}">\n`;
+          html+=`<label class="formLabel" for="floatingInputValue">${element.label}</label>\n`;
+          break;
+
+        case 'textarea':
+          html+=`<textarea rows="${element.rows}" class="form-control" id="${element.key}" placeholder="${element.placeholder}">${value}</textarea>\n`;
+          html+=`<label class="formLabel" for="floatingInputValue">${element.label}</label>\n`;
+          break;
+
+        case 'numeric':
+          html+=`<input type="number" class="form-control" id="${element.key}" placeholder="${element.placeholder}" value="${value}" min="${element.min}" max="${element.max}">\n`;
+          html+=`<label class="formLabel" for="floatingInputValue">${element.label}</label>\n`;
+          break;
+          
+        default:
+          break;
+      }
+      html+="</div>\n";
+      $('#itemForm').append(html);
+    }
+    function copyToClipboard(key){
+      var text = $(`#${key}`).val();
+      navigator.clipboard.writeText(text);
+      console.log(`Text copied to clipboard: ${text}`);
+    }
+
+    function gotEditItem(codeEditItemJSON){
+      if (codeEditItemJSON){
+        var selectedDataASINRow=JSON.parse(codeEditItemJSON);
+        console.log(`gotEditItem(${JSON.stringify(selectedDataASINRow)})`);
+        if (selectedDataASINRow&&selectedDataASINRow.item){
+          console.log(`this.editItem before -> ${JSON.stringify(this.editItem)}`);
+          this.editItem=selectedDataASINRow.item;
+          console.log(`this.editItem after -> ${JSON.stringify(this.editItem)}`);
+          this.editItemRow=selectedDataASINRow.foundRow;
+          populateForm();
+          $('#submitButton').html('Save');
+        } 
+      }
+      google.script.run.withSuccessHandler(init).hasAPI();
+    }
+    function _old(empty=false){
+      console.log(`populating Form`);
+      $('#acceptedDate').val(empty?'':this.editItem.ACCEPTEDDATE);
+      $('#asin').val(empty?'':this.editItem.ASIN);
+      $('#detail').val(empty?'':this.editItem.DETAIL);
+      $('#name').val(empty?'':this.editItem.ITEM);
+      $('#notes').val(empty?'':this.editItem.NOTES);
+      $('#photos').val(empty?'':this.editItem.PHOTOCOUNT);
+      $('#rejectedDate').val(empty?'':this.editItem.REJECTEDDATE);
+      $('#stars').val(empty?'':this.editItem.STARS);
+      $('#submittedDate').val(empty?'':this.editItem.SUBMITTEDDATE);
+      $('#title').val(empty?'':this.editItem.TITLE);
+      $('#videos').val(empty?'':this.editItem.VIDEOCOUNT);
+    }
+    function postAPICheck(useHasAPI){
+      hasAPI=userHasAPI;
+      google.script.run.withSuccessHandler(init).hasAPI();
+    }
+    function loadProductConfirm(evt){
+      console.log('loadProductConfirm');
+        if (!evt.ctrlKey){
+          //var ui=SpreadsheetApp.getUi();
+          //var choice=ui.alert('ASIN API Warning',`Loading the product info will use an ASIN API token.\n\n<i>This dialog box can be skipped by holding down the CTRL key when clicking the Load button</i>\n\n[OK] Load the product info\n[CANCEL] Return to form`,ui.ButtonSet.OK_CANCEL);      
+          var clickedOK=confirm(`Loading the product info will use an ASIN API token.\n\nThis dialog box can be skipped by holding down the CTRL key when clicking the Load button\n\n[OK] Load the product info\n[CANCEL] Return to form`);      
+          if (!clickedOK){
+            console.log('loadProductConfirm canceled.');
+            return;
+          }
+        } else {
+          console.log('loadProductConfirm skipping dialog due to depressed CTRL key.');
+        }
+        loadProductInfo($('#asin').val());
+    }
+
+    function loadProductInfo(asin){
+      console.log(`Loading product info for ${asin}`);      
+      retrieveProductData(asin);
+    };
+
+    function init(userHasAPI){
+      //$('#collapseOne').collapse('toggle');
+      $('.accordion-button').on('focus', function(){
+        $(this).parent().parent().children('.accordion-collapse').collapse('toggle');
+        var accId = $(this).attr('data-bs-target');
+        console.log(`accId='${accId}'`);
+        var firstInput=$(`${accId} input:first`);
+        console.log(`first input = ${firstInput.attr('id')}`);
+        firstInput.focus();
+      });      
+      hasAPI=userHasAPI;
+      enableForm();
+    }
+    /* Asynchronous */
+    function retrieveProductData(asin) {
+      showSpinner("Retrieving product data from API...");
+      google.script.run.withSuccessHandler(populateProductFields).retrieveProductData(asin);
+      //disableForm();
+      return true;
+    }
+    function submit(evt){
+      var productData={
+        accepteddate:$('#acceptedDate').val(),
+        asin: $('#asin').val(),
+        canceleddate:$('#canceledDate').val(),
+        category: $('#category').val(),
+        detail:$('#detail').val(),
+        etv:$('#etv').val(),
+        item: $('#name').val(),
+        msrp:$('#msrp').val(),
+        notes:$('#notes').val(),
+        order:$('#orderNum').val(),
+        ordereddate:$('#orderedDate').val(),
+        photocount:$('#photos').val(),
+        receiveddate:$('#receivedDate').val(),
+        rejecteddate:$('#rejectedDate').val(),
+        shippeddate:$('#shippedDate').val(),
+        stars:$('#stars').val(),
+        submitteddate:$('#submittedDate').val(),
+        title:$('#title').val(),
+        videocount:$('#videos').val(),
+        existingRow:this.editItemRow??undefined,
+      };
+
+      if (evt.ctrlKey) productData={"asin":"B0BS49TQ2R","category":"Tools & Home Improvement","detail":"My detail","etv":"$1.23","item":"Sports Card Storage Box/Carrying Case - Waterproof Organizer and Card Holder Protects All Graded and Ungraded Trading Cards Securely - PSA BGS SGC and More 3 Row (13.5 x 12 x 7)","msrp":"$69.99","notes":"My notes","order":"113-9816556-4325855","ordereddate":"2023-11-01","photocount":"2","receiveddate":"2023-11-03","rejecteddate":"2023-11-08","shippeddate":"2023-11-02","stars":"3","submitteddate":"2023-11-06","title":"My title","videocount":"1"};
+
+      console.log(`submit JSON = ${JSON.stringify(productData)}`);
+      google.script.run.withSuccessHandler(complete).updateSheetWithItem(productData);
+    }
+    function complete(results)
+    {
+      if (results.isEdit) {
+        this.closeForm();
+      } else {
+        populateForm(true);
+        enableForm();
+      }
+        
+    }
+    function populateProductFields(productData){
+      hideSpinner();
+      console.log(`populateProductFields(productData) JSON=${JSON.stringify(productData)}`);
+      if (!productData){
+        displayError("Error retrieving product data from API");
+      } else if (productData.error) {
+        displayError(productData.error);
+      } else {
+        $('#name').val(productData.productData.title);
+        $('#category').val(productData.productData.category);
+        $('#msrp').val(productData.productData.price).focus();
+        console.log(`timer: ${productData.timer}`);
+      }
+    }
+    /* UI Control */
+    function closeForm(){
+      google.script.host.close();
+    }
+    function disableForm(){
+      $('#productForm').prop("disabled",true).css("opacity","0.25");
+    }
+    function enableForm(){
+      hideSpinner();
+      $("#productForm").children().val("");
+      $('#productForm').prop("disabled",false).css("opacity","1");;
+      $('#asin').focus();
+    }
+    function hideError(){
+      $('#error').hide();
+    }
+    function hideMessage(){
+      $('#message').hide();
+    }
+    function hideSpinner(){
+      console.log('hideSpinner() start');
+      $('#spinnerContainer').hide();
+      $('#overlay').hide();
+      displayMessage('');
+      console.log('hideSpinner() end');
+    }
+    function showSpinner(message){
+      if(message) displayMessage(message);
+      $('#spinnerContainer').show();
+      $('#overlay').show();
+    }
+    function displayError(message){
+      hideMessage();
+      $('#error').show();
+      $('#error').html(message);
+    }
+    function displayMessage(message){
+      hideError();
+      $('#message').show();
+      $('#message').html(message);
+    }
+    function formatCurrency(id){
+      var element = $(`#${id}`);
+      var val = element.val().trim();
+      val=val.replace('$','').replace(',','');
+      if(isNaN(val)){
+          element.val('');
+      }else{
+        element.val(currencyFormatter.format(val));
+      }
+    }
+    function validASINFormat(asin){
+      var match=asin.match(/([0-9]{10})|B0([A-Z0-9]{8})/g);
+      var valid=(match&&match.length===1);
+      return {
+        valid:valid,
+        formattedASIN:match
+      }
+    }
+    function formatAndValidateASIN(){
+      clearAndHideASINError();
+      var asin = $(`#asin`).val().trim();
+      var formatCheck=validASINFormat(asin);
+      if (!formatCheck.valid) {
+        showInvalidASIN({asin:asin});
+      } else {
+        var spinnerMsg = `Loading image for ASIN ${asin}...`;
+        if (hasAPI) spinnerMsg = `${spinnerMsg}<br/>NOTE: This is not done via a call to the ASIN API.`;
+        //showSpinner(spinnerMsg);
+        console.log(`formatAndValidateASIN -> isLiveASIN(${formatCheck.formattedASIN})`);
+        google.script.run.withSuccessHandler(handleASINDisplay).isLiveASIN(formatCheck.formattedASIN);
+      }
+    }
+    function handleASINDisplay(results){
+      if (results.isValid){
+        showValidASIN(results);
+      } else {
+        showInvalidASIN(results);
+      }
+      hideSpinner();
+    }
+    function showInvalidASIN(results){
+      var itemImage = $('#itemImage');
+      itemImage.hide();
+      itemImage.attr('src','');
+      $(`#asin`).val('').focus();
+      if (results.asin){
+         $('#asin_error').html(`${results.asin} is not a valid ASIN`).show();
+      } 
+      showAPIButton(false);
+      showSubmitButton(false);
+    }
+    function clearAndHideASINError(){
+      $('#asin_error').html(``).hide();
+    }
+    function showValidASIN(results){
+      console.log('showValidASIN() start');
+
+      var itemImage = $('#itemImage');
+      itemImage.show();
+      itemImage.attr('src',results.img);
+      $(`#asin`).val(results.asin);
+      clearAndHideASINError();
+      if (hasAPI){
+        showAPIButton(true);
+      }
+      showSubmitButton(true);
+      console.log('showValidASIN() end');
+    }
+    function showAPIButton(accessible){
+      if (accessible){
+        $('#formAPIButton').show();
+      } else {
+        $('#formAPIButton').hide();
+      }
+    }
+    function showSubmitButton(accessible){
+      if (accessible){
+        $('#formSubmitButton').show();
+      } else {
+        $('#formSubmitButton').hide();
+      }
+    }
+    function formatOrderNum(){
+      var element =$('#orderNum');
+      var orderNum=element.val().trim();
+      if (!orderNum || orderNum.length===0) return;
+      parsed = orderNum.match(/[\d]{3}-[\d]{7}-[\d]{7}|[\d]{17}/g);
+      console.log(`parsed = ${parsed}`);
+      console.log(`parsed.indexOf('-')= ${parsed.indexOf('-')}`);
+      if (parsed){
+        parsed=parsed[0];
+        if (parsed.indexOf('-')===-1){
+          element.val(`${parsed.substring(0,3)}-${parsed.substring(3,10)}-${parsed.substring(10,17)}`);
+        }else{
+          element.val(parsed);
+        }
+      } else {
+        element.val('');
+      }
+    }
+  </script>
+</head>
+
+<!--
+  TODO:
+        - add item to spreadsheet via form object so that it can be automated when bulk import is added
+
+-->
+
+<body>
+  <div class="form-body">
+    <div class="form-holder">
+      <div class="form-content">
+        <div class="form-items">
+          <div id="itemForm" class="row form">
+          </div>
+          <div id="formSubmitButton" class="col-2">
+            <button class="btn btn-primary" id="submitButton" type="button" title='Submit'>Save</button>
+          </div>
+          <div id="overlay"></div>            
+          <div id="spinnerContainer">
+            <div id="spinner">
+              <div class="spinners">
+                <div class="spin1"></div>
+                <div class="spin2"></div>
+                <div class="spin3"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>
