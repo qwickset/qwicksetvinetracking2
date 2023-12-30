@@ -8,5 +8,12 @@
     }]
   },
   "exceptionLogging": "STACKDRIVER",
-  "runtimeVersion": "V8"
+  "runtimeVersion": "V8",
+  "sheets": {
+    "macros": [{
+      "menuName": "showReviewForm",
+      "functionName": "showReviewForm",
+      "defaultShortcut": "Ctrl+Alt+Shift+0"
+    }]
+  }
 }

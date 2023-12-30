@@ -14,7 +14,7 @@ function startup() {
     var mainMenu = SpreadsheetApp.getUi().createMenu('🍃Vine');
     //mainMenu.addItem("Bulk Input","showBulkInput");
     mainMenu.addItem("File Import","showImport");
-    mainMenu.addItem("Show Review Form","showReviewForm");
+    mainMenu.addItem("Show Review Form (Ctrl+Alt+Shift+0)","showReviewForm");
     mainMenu.addSeparator();
     mainMenu.addItem("Future Features","showFutureFeatures");
     mainMenu.addSeparator();
