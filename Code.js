@@ -13,8 +13,11 @@ function startup() {
 
     var mainMenu = SpreadsheetApp.getUi().createMenu('🍃Vine');
     //mainMenu.addItem("Bulk Input","showBulkInput");
-    mainMenu.addItem("File Import","showImport");
-    mainMenu.addItem("Show Review Form (Ctrl+Alt+Shift+0)","showReviewForm");
+    var importMenu=SpreadsheetApp.getUi().createMenu('Import...');
+    importMenu.addItem("...from Amazon Vine Itemized Report","showAVIRImport");
+    importMenu.addItem("...from previous QwicksetTracking sheet","showQTImport");
+    mainMenu.addSubMenu(importMenu);
+    mainMenu.addItem("Current Item Review Form (Ctrl+Alt+Shift+0)","showReviewForm");
     mainMenu.addSeparator();
     mainMenu.addItem("Future Features","showFutureFeatures");
     mainMenu.addSeparator();
@@ -30,20 +33,82 @@ function startup() {
     this.alert('Hardstop Error',msg,ui.ButtonSet.OK);      
   }
 }
-function getItemRowData(endColLetter){
-  console.log(`getItemRowData('${endColLetter}')`);
+function flushAll(){
+  SpreadsheetApp.flush();
+}
+function getBase64Image(code){
+  var b64 = new Base64Images();
+  var imgSrc = b64.image(code);
+  return imgSrc;
+}
+function getItemRowData(){
+  var data=[];
+  var error;
   var activeSheet=SpreadsheetApp.getActiveSheet();
+  var ui = SpreadsheetApp.getUi();
   var range=activeSheet.getActiveRange();
   var row=range.getRowIndex();
-  var a1=`A${row}:${endColLetter}${row}`;
-  console.log(`     a1='${a1})`);
-  var dataRange=activeSheet.getRange(a1);
-  var values=dataRange.getValues();
-  console.log(`values...`);
-  for(var i=0;i<values.length;i++){
-    console.log(`     [0][${i}]=${values[0][i]}`);
+  if (row==1){
+    error={
+      title:'Row error',
+      message:'Please ensure you are on a row with item data.'
+    };
+  }else if (1==2 && activeSheet.getName().toUpperCase()!=='DATA'){
+    error={
+      title:'Sheet/tab error',
+      message:'Please switch to "Data" tab and select a populated item row'
+    };
+  }else{
+    var endColLetter='Y';
+    var a1=`A${row}:${endColLetter}${row}`;
+    var keyA1=`A1:${endColLetter}1`;
+    var dataSheet= getSheetByName("Data");
+    var dataRange=dataSheet.getRange(a1);
+    var keyRange=dataSheet.getRange(keyA1);
+    var values=JSON.parse(JSON.stringify(dataRange.getValues()))[0];
+    var keyValues=JSON.parse(JSON.stringify(keyRange.getValues()))[0];
+    var asin;
+    for(var i=0;i<values.length;i++){
+      var key = keyValues[i];
+      key=key.replace(/\n/g,'').replace(' ','').toUpperCase();
+      var value=values[i];
+      if (key==='ASIN' && value) asin=value;
+      var item = {
+        row:row,
+        column:i+1,
+        key:key,
+        value:value
+      };
+      data.push(item);
+      console.log(`     ${JSON.stringify(item)}`);
+    }
+    if (!asin){
+      error={
+        title:'Missing ASIN',
+        message:'The selected row does not appear to contain an ASIN'
+      };
+      data=[];
+    }
   }
-  return JSON.stringify(values);
+  return JSON.stringify({
+    data:data,
+    row:row,
+    error:error
+  });
+}
+function updateSheetWithItem(productData){
+  console.log('updateSheetWithItem called.');
+  console.log(`updateSheetWithItem(${JSON.stringify(productData)})`);
+  var data = productData.data;
+  var row = productData.row;
+  var sheet = getSheetByName("Data");
+  data.forEach(prop => {
+    console.log(`setCellValue('${sheet.getName()}',\nrow:${row},\ncolumn:${prop.column},\nvalue:'${prop.value}')`);
+    setCellValue(sheet,row,prop.column,prop.value);
+  });
+ return {
+  isEdit:true
+ }
 }
 function getCurrentItem(){
   var activeSheet=SpreadsheetApp.getActiveSheet();
@@ -97,8 +162,12 @@ function showFutureFeatures() {
 //  var widget = HtmlService.createHtmlOutputFromFile("BulkInput.html").setWidth(1000).setHeight(1000);
 //  SpreadsheetApp.getUi().showModalDialog(widget, " ");
 //}
-function showImport() {
-  var widget = HtmlService.createHtmlOutputFromFile("Import.html").setWidth(1000).setHeight(1000);
+function showAVIRImport() {
+  var widget = HtmlService.createHtmlOutputFromFile("AVIR_Import.html").setWidth(1000).setHeight(1000);
+  SpreadsheetApp.getUi().showModalDialog(widget, " ");
+}
+function showQTImport() {
+  var widget = HtmlService.createHtmlOutputFromFile("QT_Import.html").setWidth(1000).setHeight(1000);
   SpreadsheetApp.getUi().showModalDialog(widget, " ");
 }
 function showReviewForm() {
@@ -107,11 +176,11 @@ function showReviewForm() {
 }
 
 function setCellValue(sheet, row, column, value) {
-  var cellAddress=Utils.a1Notation(row,column)
+  var cellAddress=this.a1Notation(row,column)
   console.log(`setting cellAddress ${sheet.getName()}::${cellAddress} to "${value}"`);
   var valueRange = sheet.getRange(cellAddress);
   valueRange.setValue(value);
-}
+} 
 function getAllASINS(){
   var ASINS =[];
   var sheet = getSheetByName("Data");
@@ -136,19 +205,52 @@ function nextNewRow(){
   */
 }
 
-function addItemToSheet(item,row){
-  console.log(`addItemToSheet(${JSON.stringify(item)},${row})`);
-  var sheet = getSheetByName("Data");
-  sheet.getRange(row, 1).setValue(item["Order Number"]);
-  sheet.getRange(row, 6).setValue(item["ASIN"]);
-  sheet.getRange(row, 7).setValue(item["Product Name"]);
-  sheet.getRange(row, 2).setValue(item["Order Date"]);
-  sheet.getRange(row, 3).setValue(item["Shipped Date"]);
-  sheet.getRange(row, 5).setValue(item["Cancelled Date"]);
-  sheet.getRange(row, 9).setValue(item["Estimated Tax Value"]);
-  return (item.ASIN);
+function addItemToSheet(results){
+  var item=results.items[results.index];
+  var row=results.row-1;
+  var stopIndex = Math.min(results.index+results.batchSize,results.items.length-1);
+  console.log(`addItemToSheet() from ${results.index} to ${stopIndex} [results.items.length=${results.items.length}]`);
+  for(var i=results.index;i<=stopIndex;i++){
+    var item=results.items[i];
+    row++;
+    console.log(`     #${i} ASIN:${item.ASIN} row:${row}`);
+    trySet(row,1,item,"Order Number");
+    trySet(row,2,item,"Order Date");
+    trySet(row,3,item,"Shipped Date");
+    trySet(row,4,item,"Received Date");
+    trySet(row,5,item,"Cancelled Date");
+    trySet(row,6,item,"ASIN");
+    trySet(row,7,item,"Product Name");
+    trySet(row,8,item,"Category");
+    trySet(row,9,item,"Estimated Tax Value");
+    trySet(row,10,item,"MSRP");
+    trySet(row,11,item,"Submitted Date");
+    trySet(row,12,item,"Accepted Date");
+    trySet(row,13,item,"Rejected Date");
+    trySet(row,14,item,"Canceled Date");
+    trySet(row,15,item,"Stars");
+    trySet(row,16,item,"Photos");
+    trySet(row,17,item,"Video");
+    trySet(row,18,item,"Title");
+    trySet(row,19,item,"Detail");
+    trySet(row,20,item,"Notes");
+  }
+
+  return {
+    items:results.items,
+    batchSize:results.batchSize,
+    index:stopIndex,
+    row:row+1,
+    savedASINSStartIndex:results.index,
+    savedASINSEndIndex:stopIndex
+  };
 }
 
+function trySet(row,column,item,field){
+  var sheet = getSheetByName("Data");
+  var value=item[field];
+  if (value) sheet.getRange(row, column).setValue(value);
+}
 
 function getNamedRange(sheet, name) {
   console.log(`getNamedRange(sheet:${sheet.getName()},'${name}')`);
@@ -163,7 +265,7 @@ function getNamedRange(sheet, name) {
 };
 
 function a1Notation(row,col,fullHeight){
-  this.log(`a1Notations(${row},${col},${fullHeight})`);
+  console.log(`a1Notations(${row},${col},${fullHeight})`);
   var col = `${String.fromCharCode(col+64)}`;
   var a1= `${col}${row}`;
   if (fullHeight)
@@ -183,10 +285,10 @@ function getCellValue(sheet, row, column) {
 function getSheetByName(sheetName){
   return SpreadsheetApp.getActive().getSheetByName(sheetName); 
 }
-
-function getProductImageURL(asin) {
-  return {ASIN:asin,
-    src:"https://ws-na.amazon-adsystem.com/widgets/q?_encoding=UTF8&MarketPlace=US&ASIN=" + asin + "&ServiceVersion=20070822&ID=AsinImage&WS=1&Format=_SL150_"};
+function tempLock(){
+  var lock = LockService.getScriptLock();
+  lock.waitLock(1000);
+  lock.releaseLock();
 }
 function toast(message){
     SpreadsheetApp.getActiveSpreadsheet().toast(message);

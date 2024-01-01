@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<!--
+      About.HTML
+-->
+<html>
+
+<head>
+    <base target="_top">
+    <link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css" rel="stylesheet"
+        id="bootstrap-css">
+    <script src="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/js/bootstrap.min.js"></script>
+    <script src="//code.jquery.com/jquery-1.11.1.min.js"></script>
+    <!------ Include the above in your HEAD tag ---------->
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400&amp;display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Poppins:300,400,500&amp;display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Source+Serif+Pro:400,600&amp;display=swap" rel="stylesheet">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;700;900&display=swap');
+
+        *,
+        body {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 400;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
+        }
+
+        .container {
+            padding: 10px;
+        }
+
+        textarea {
+            border: 1px solid #999999;
+            width: 90%;
+            margin: 5px 0;
+            padding: 3px;
+        }
+
+        .parsedIDsContainer {
+            display: none;
+        }
+
+        .right {
+            float: right;
+        }
+
+        #newDataTable,
+        #foundDataTable,
+        #statusDataTable {
+            overflow: auto;
+            position: relative;
+            margin-bottom: 5px;
+            border: 1px solid gray;
+        }
+
+        #newDataTable,
+        #foundDataTable {
+            height: 250px;
+        }
+
+        #statusDataTable {
+            height: 750px;
+        }
+
+        .center {
+            text-align: center !important;
+        }
+
+        input[type='checkbox'] {
+            width: 20px;
+            height: 20px;
+        }
+
+        button {
+            margin-left: 10px;
+            margin-right: 10px;
+        }
+
+        #toggle {
+            margin-left: 25px;
+        }
+
+        .preworkProcess,
+        .importProcess,
+        .parseProcess,
+        .statusProcess {
+            display: none;
+        }
+
+        table {
+            font-size: x-small;
+        }
+
+        #btnImport,
+        #btnClose {
+            display: none;
+        }
+
+        #preworkContainer{
+            width:100%
+        }
+        #step1Help{
+            margin:auto;
+            display:block;
+        }
+        #importProgress {
+            font-size: 20px;
+        }
+
+        .progress {
+            height: 40px;
+        }
+        #bulkinput{
+            overflow-x:auto;
+            white-space:pre;
+        }
+        .warningbox{
+            font-size: 15px;
+            color: firebrick;
+            font-weight: bold;
+            border-radius: 10px;
+            border: 3px solid firebrick;
+            background: white;
+            padding: 20px;
+            line-height: 1.6;        
+            margin-top:5px;
+            margin-bottom:5px;
+        }
+        #foundImportContainer,
+        #newImportContainer
+        {
+            display:none;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Import Amazon Vine Itemized Report
+        <h3 /><button id="btnImport" class="btn btn-primary right parseProcess disabled" onclick="getLastRow()">Import
+            Selected</button>
+        <div id='preworkContainer' class='preworkProcess userContainer'>
+            <h3>Step 1 of 3: In your worksheet on the Ledger/Data tab...</br>
+                <div class="warningbox">WARNING: This will make changes to your data sheet. Although CTRL+Z may help rollback the changes, it is highly recommend you make a backup copy before proceeding.</div>
+                <i style="font-size:smaller">
+                    1. Download an itemized annual report from your <a href="https://www.amazon.com/vine/account" target="_blank">Vine Account</a> page<br/>
+                    2. Open it in either MS Excel or Google Sheets<br/>
+                    3. Highlight header and row data<br/>
+                    4. Copy to clipboard
+                </i><br/>
+                <img id="step1Help" width="75%" src="https://drive.google.com/uc?export=view&id=1jK2uqtTGb2H8OaEb3eFt3D9mKaoE7vaJ">
+            <h3 />
+            <button onclick="closeThis()" class="btn btn-secondary">Cancel</button>
+            <button id='btnGetData' onclick="getData()" class="btn btn-primary right">Next</button>
+        </div>
+        <div id='importContainer' class='importProcess userContainer'>
+            <h3>Step 2 of 3: Cut/Paste XLSX contents here
+                <h3 />
+                <textarea id="bulkinput" rows="30"></textarea><br/>
+                <button onclick="closeThis()" class="btn btn-secondary">Close</button>
+                <button id='btnParse' onclick="parseData()" class="btn btn-primary right">Next</button>
+        </div>
+        <div id='parsedContainer' class='parseProcess userContainer'>
+            <h3>Step 3 of 3: Select items to import</h3>
+            <div id='newImportContainer'>
+                <h2 id="newImportHeading">New Import Items<h2 />
+                <button id="toggle" onclick="toggleChecks('#newDataTable')" class="btn btn-secondary">Toggle Selected</button>
+                <div id='newDataTable'>
+                </div>
+            </div>
+            <div id='foundImportContainer'>
+                <h2 id="foundImportHeading">Existing Import Items<br><i style="font-size:smaller">These items have been found in your existing data</i></h2>
+                <button id="toggle" onclick="toggleChecks('#foundDataTable')" class="btn btn-secondary">Toggle Selected</button>
+                <div id='foundDataTable'>
+                </div>
+            </div>
+            <button onclick="closeThis()" class="btn btn-secondary">Cancel</button>
+        </div>
+        <div id='statusContainer' class='statusProcess userContainer'>
+            <h3>Import selected items...</h3>
+            <div id='statusDataTable'>
+            </div>
+            <div class="progress">
+                <div id="importProgress" class="bar" style="width: 0%;">0%</div>
+            </div>
+        </div>
+        <div class="right">
+            <button id="btnClose" onclick="closeThis()" class="btn btn-primary">Close</button>
+        </div>
+</body>
+
+<script>
+    $(document).ready(function () {
+        $('#bulkinput').attr("placeholder",bulkInputPlaceholder);
+        showPrework();
+    });
+    function showPrework(){
+        console.log(`showPrework()`);
+        $('.preworkProcess').show();
+    }
+    function showImport(ASINS) {
+        sheetASINS = ASINS;
+        //console.log(`showImport(${ASINS}`);
+        $('.importProcess').show();
+    }
+    function getData(){
+        $('.preworkProcess').hide();
+        google.script.run.withSuccessHandler(showImport).getAllASINS();
+    }
+    let USDollar = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+    });
+    function toggleChecks(selector) {
+        var totalChecks = $(`${selector} tr td input.asinCheckbox`).length;
+        var totalChecked = $(`${selector} tr td input.asinCheckbox:checked`).length;
+        if (!totalChecked) totalChecked = 0;
+        var makeChecked = ((totalChecked / totalChecks) < 0.5);
+        $(`${selector} tr td input.asinCheckbox`).prop("checked", makeChecked);
+    }
+    function selectAll() {
+        $("#productsTable input[type=checkbox]").prop('checked', $(this).prop('checked'));
+    }
+    function populateImage(imgData) {
+        $(`#img_${imgData.ASIN}`).attr('src', imgData.src);
+        data.filter(function (item) {
+            return item.ASIN == imgData.ASIN;
+        }).map(function (item) {
+            item.Image = imgData.src;
+        });
+    }
+
+    function parseData() {
+        $('.importProcess').hide();
+        $('.parseProcess').show();
+        var l = -1;
+        var fileLines = $('#bulkinput').val().split('\n').map((line) => line.split('\t'));
+        fileLines.forEach(function (fileLine) {
+            l++;
+            if (!headings && fileLine[0].trim() == "Order Number") {
+                headings = ["Select", "Image"].concat(fileLine);
+                var headingIndex = -1;
+                headings.forEach(function (heading) {
+                    headingIndex++;
+                    if (heading.toLowerCase() == "asin") ASINIndex = headingIndex - 2;
+                });
+                console.log(`    headings=${JSON.stringify(headings).replaceAll(',',',\n')}`);
+            } else if (headings) {
+                var element = -1;
+                var item = {};
+                var ASIN;
+                if (ASINIndex && fileLine[ASINIndex]) {
+                    ASIN = fileLine[ASINIndex];
+                    headings.forEach(function (heading) {
+                        if (heading.toLowerCase() == "select")
+                            item[heading] = false;
+                        else if (heading.toLowerCase() == "image")
+                            item[heading] = ""
+                        else {
+                            element++;
+                            item[heading] = fileLine[element];
+                        }
+                    });
+                    data.push(item);
+                }
+            }
+        });
+        splitItems();
+    }
+
+    function splitItems() {   // Between existing and new
+        var newItems = [];
+        var foundItems = [];
+        data.forEach(function (item) {
+            var found = sheetASINS.filter(function (asin) {
+                return asin && asin.toLowerCase() === item.ASIN.toLowerCase();
+            });
+            if (found.length > 0) {
+                foundItems.push(item);
+            }
+            else
+                newItems.push(item);
+        });
+        var showCount=0;
+        if (newItems&&newItems.length>0){
+            renderData(newItems, "#newDataTable");
+            $('#newImportHeading').text(`New  Import Items (${newItems.length} items)`);
+            $('#newImportContainer').show();
+            showCount++;
+        }
+
+        if (foundItems&&foundItems.length>0){
+            renderData(foundItems, "#foundDataTable");
+            $('#foundImportHeading').text(`Found Import Items (${foundItems.length} items)`);
+            $('#foundImportContainer').show();
+            showCount++;
+        }
+        if (showCount==1){
+            $('#newDataTable').height($('#newDataTable').height()*2.5);
+            $('#foundDataTable').height($('#foundDataTable').height()*2.5);
+        }
+        
+    }
+
+    function getTableHeading(selector) {
+        var tableHtml = '<table class="table table-stiped"><thead>';
+        headings.forEach(function (heading) {
+            tableHtml = `${tableHtml}<th scope='col'>${heading}</th>`;
+        });
+        tableHtml = `${tableHtml}</tr></thead><tbody>`;
+        return tableHtml;
+    }
+    function checked() {
+        if ($('div#newDataTable input:checkbox:checked')) {
+            ('#btnImport').removeClass('disabled');
+        } else {
+            ('#btnImport').addClass('disabled');
+        }
+    }
+    function getTableItem(selector, item) {
+        var foundImgWidth = 25;
+        var tableHtml = `<tr>`;
+        headings.forEach(function (heading) {
+            if (heading.toLowerCase() == "select" || heading.toLowerCase() == "saved") {
+                var extra = "";
+                if (heading.toLowerCase() == "saved") extra = "readonly";
+                tableHtml = `${tableHtml}<td class="center"><input onclick="checked" class='asinCheckbox' type='checkbox' id='chk_${item.ASIN}' ${extra}></td>`;
+            } else if (heading.toLowerCase() == "image") {
+                if (!item.Image || item.Image.length == 0) item.Image = getProductImageURL(item.ASIN);
+                tableHtml = `${tableHtml}<td><img style='width:${foundImgWidth}px' id='img_${item.ASIN}' src="${item.Image}"/></td>`;
+            } else {
+                var value = item[heading];
+                if (heading.toLowerCase() == "product name" ||
+                    heading.toLowerCase() == "notes" ||
+                    heading.toLowerCase() == "title" ||
+                    heading.toLowerCase() == "detail") {
+                    if (value.length > 50) value = `${value.substring(0, 50)}...`;
+                }
+                tableHtml = `${tableHtml}<td>${value}</td>`;
+            }
+        });
+        tableHtml = `${tableHtml}</tr>`;
+        return tableHtml;
+    }
+    function getProductImageURL(asin) {
+        return "https://ws-na.amazon-adsystem.com/widgets/q?_encoding=UTF8&MarketPlace=US&ASIN=" + asin + "&ServiceVersion=20070822&ID=AsinImage&WS=1&Format=_SL150_";
+    }
+
+    function getTableFooter(selector) {
+        return `</tbody></table>`;
+    }
+
+    function renderData(splitData, selector) {
+        var tableHtml = `${getTableHeading(selector)}`;
+        var imgASINS=[];
+        splitData.forEach(function (item) {
+            tableHtml = `${tableHtml}${getTableItem(selector, item)}`;
+            imgASINS.push(item.ASIN);
+        });
+        tableHtml = `${tableHtml}${getTableFooter(selector)}`;
+        $(selector).append(tableHtml);
+    }
+    function getLastRow() {
+        google.script.run.withSuccessHandler(importItems).nextNewRow();
+    }
+    function importItems(firstRow) {
+        console.log(`importItems(${firstRow})`);
+        $('.parseProcess').hide();
+        $('.statusProcess').show();
+        var ASINS = [];
+        $('div#newDataTable input:checkbox:checked').each(function (index) {
+            ASINS.push($(this).attr("id").replace('chk_', ''));
+        });
+        $('div#foundDataTable input:checkbox:checked').each(function (index) {
+            ASINS.push($(this).attr("id").replace('chk_', ''));
+        });
+        console.log(`Selected ASINS = ${JSON.stringify(ASINS)}`);
+        if (!ASINS) return;
+
+        var dataSelected = data.filter(function (item) {
+            return ASINS.indexOf(item.ASIN) >= 0;
+        })
+        var dataToSave = [];
+        dataSelected.forEach(function (data) {
+            var newData = {};
+            headings.forEach(function (heading) {
+                if (heading.toLowerCase() === "select")
+                    newData.Saved = false;
+                else
+                    newData[heading] = data[heading];
+            });
+            dataToSave.push(newData);
+        });
+        headings[0] = 'Saved';
+        renderData(dataToSave, "#statusDataTable");
+
+        console.log('\n\n\n\n****************************');
+        //var row = firstRow - 1;
+        //dataToSave.forEach(function (item) {
+            //row++;
+            //console.log(`google.script.run.withSuccessHandler(markAsSaved).addItemToSheet(${item.ASIN}) at row ${row}`);
+            addItemToSheet({
+                items:dataToSave,
+                row:firstRow,
+                index:0,
+                batchSize:20
+            });
+        //});
+        console.log(`refresh data...`);
+        google.script.run.flushAll();
+        console.log(`refreshed`);
+        console.log('****************************\n\n\n\n');
+    }
+    function addItemToSheet(results){
+        console.log('\n\n\n****************************');
+        console.log(`addItemToSheet()\n`);
+        console.log(`     items:{suppressed}\n`);
+        console.log(`     batchSize:${results.batchSize}\n`);
+        console.log(`     index:${results.index}\n`);
+        console.log(`     row:${results.row}\n`);
+        console.log(`     savedASINSStartIndex:${results.savedASINSStartIndex}\n`);
+        console.log(`     savedASINSEndIndex:${results.savedASINSEndIndex}\n`);
+
+        if (results.savedASINSStartIndex||results.savedASINSStartIndex===0){
+            for(var i=results.savedASINSStartIndex;i<=results.savedASINSEndIndex;i++){
+                console.log(`markAsSaved for index #${i}`);
+                console.log(`     ASIN=${results.items[i].ASIN})`);
+                markAsSaved(results.items[i].ASIN);
+            }
+        } 
+        if (results.index<results.items.length-1) {
+            console.log(`calling addItemToSheet on server`);
+            google.script.run.withSuccessHandler(addItemToSheet).addItemToSheet(results);
+        } else {
+            console.log(`done with addItemToSheet() batching.`);
+        }
+    }
+    function markAsSaved(asin) {
+        var total = $('div#statusDataTable input:checkbox').length;
+        var notChecked = $('div#statusDataTable input:checkbox:not(:checked)').length;
+        var checked = $('div#statusDataTable input:checkbox:checked').length;
+        var progress = Math.round(checked * 100 / total);
+
+        setProgress(progress);
+        console.log(`ASIN ${asin} saved.`);
+        console.log(`     checked=${$(`div#statusDataTable input#chk_${asin}`).is(":checked")}`);
+        $(`div#statusDataTable #chk_${asin}`).prop('checked', true);
+        console.log(`     checked=${$(`div#statusDataTable input#chk_${asin}`).is(":checked")}`);
+        if ($('div#statusDataTable input:checkbox:not(:checked)').length == 0)  //check if none aren't checked, we're done
+        {
+            $('#btnImport').hide();
+            $('#btnClose').show();
+            setProgress(100);
+        }
+    }
+    function setProgress(n) {
+        console.log(`setProgress(${n})`);
+        $('#importProgress').css('width', `${n}%`).text(`${n}%`);
+    }
+    function closeThis() {
+        google.script.host.close();
+    }
+
+    var data = [];
+    var headings;
+    var sheetASINS = [];
+    var bulkInputPlaceholder=`Example:\n\r\nAmazon Vine Itemized Report for 2023							\n\n`;
+    bulkInputPlaceholder=`${bulkInputPlaceholder}Order Number	ASIN	Product Name	Order Type	Order Date	Shipped Date	Cancelled Date	Estimated Tax Value\n`;
+    bulkInputPlaceholder=`${bulkInputPlaceholder}113-2043995-9999999	B0BBSNABCD	Foo Bar	ORDER	01/31/2023	01/31/2023		0\n`;
+    bulkInputPlaceholder=`${bulkInputPlaceholder}113-5790246-9999999	B0BS3MABCD	Widget v2.0	ORDER	02/06/2023	02/07/2023		0\n`;
+    bulkInputPlaceholder=`${bulkInputPlaceholder}113-0432681-9999999	B0BRQ2ABCD	Whammo!	ORDER	02/09/2023	02/10/2023		0\n`;
+    bulkInputPlaceholder=`${bulkInputPlaceholder}     . . .\n     . . .\n     . . .\n`;    
+    bulkInputPlaceholder=`${bulkInputPlaceholder}113-3610706-9999999	B0BQDABCD	K-Tel Record	ORDER	02/14/2023	02/15/2023		0\n`;
+</script>
+
+</html>

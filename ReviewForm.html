@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-      ADDITEMFORM.HTML
+      REVIEWFORM.HTML
 -->
 <html>
 
@@ -235,16 +235,16 @@
     var editItem;
     var editItemRow;
     var elements=[
-      {key:'TITLE',column:'W',label:'Review Title',type:'string',placeholder:'e.g. This is my review title', copy:true},
-      {key:'DETAIL',column:'X',label:'Review Detail',type:'textarea',rows:10,placeholder:'e.g. This is my review detail',copy:true},
-      {key:'STARS',column:'S',label:'Stars',type:'numeric',min:1,max:5,placeholder:'star rating'},
-      {key:'PHOTOCOUNT',column:'T',label:'Photos',type:'numeric',min:0,max:999,placeholder:'Photos in review'},
-      {key:'VIDEOCOUNT',column:'U',label:'Videos',type:'numeric',min:0,max:1,placeholder:'Videos in review'},
-      {key:'SUBMITTEDDATE',column:'M',label:'Submitted Date:',type:'date',placeholder:'Review submitted'},
-      {key:'ACCEPTEDDATE',column:'N',label:'Accepted Date',type:'date',placeholder:'Review accepted'},
-      {key:'REJECTEDDATE',column:'O',label:'RejectedDate',type:'date',placeholder:'Review rejected'},
-      {key:'CANCELEDDATE',column:'P',label:'Canceled Date',type:'date',placeholder:'Review canceled'},
-      {key:'NOTES',column:'Y',label:'Notes',type:'textarea',rows:10,placeholder:'e.g. Personal notes...'},
+      {key:'TITLE',label:'Review Title',type:'string',placeholder:'e.g. This is my review title', copy:true},
+      {key:'DETAIL',label:'Review Detail',type:'textarea',rows:10,placeholder:'e.g. This is my review detail',copy:true},
+      {key:'STARS',label:'Stars',type:'numeric',min:1,max:5,placeholder:'star rating'},
+      {key:'PHOTOS',label:'Photos',type:'numeric',min:0,max:999,placeholder:'Photos in review'},
+      {key:'VIDEO',label:'Videos',type:'numeric',min:0,max:1,placeholder:'Videos in review'},
+      {key:'SUBMITTEDDATE',label:'Submitted Date:',type:'date',placeholder:'Review submitted'},
+      {key:'ACCEPTEDDATE',label:'Accepted Date',type:'date',placeholder:'Review accepted'},
+      {key:'REJECTEDDATE',label:'RejectedDate',type:'date',placeholder:'Review rejected'},
+      {key:'CANCELEDDATE',label:'Canceled Date',type:'date',placeholder:'Review canceled'},
+      {key:'NOTES',label:'Notes',type:'textarea',rows:10,placeholder:'e.g. Personal notes...'},
     ];
     var currencyFormatter = new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -254,35 +254,42 @@
       showSpinner('Loading Form...');
       //var fromCol = columns.reduce(function(prev,curr){return prev.column<curr.column?prev:cur;});
       var rightestColumn = elements.reduce(function(prev,curr){return (prev && prev.column>curr.column)?prev:curr;});
-      google.script.run.withSuccessHandler(populateForm).getItemRowData(rightestColumn.column);
+      google.script.run.withSuccessHandler(populateForm).getItemRowData();
     });
     function populateForm(currentInfoJSON){
       var currentInfo=JSON.parse(currentInfoJSON);
-      console.log(`populateForm(${currentInfo})`);
-      /*
-        activeSheet:activeSheet,
-        activeSheetName:activeSheetName,
-        cell:cell,
-        range:range,
-        row:row,
-        col:col,
-        width:width,
-        height:height,
-        A1not:A1not      
-      */
-      for (var i = 0; i < elements.length; i++) {
-        var element=elements[i];
-        var key=element.key;
-        var colIndex=element.column.charCodeAt(0)-65;  //A=1, B=2 -- only supports A-Z
-        var value = currentInfo[0][colIndex];
-        console.log(`${key} from form is ${value}`);
-        addFormItem(element,value);
-      }     
-      showSubmitButton(true);
-      hideSpinner(); 
+      if (currentInfo.error){
+        console.log(`ERROR -> ${JSON.stringify(currentInfo.error)}`);
+        google.script.run.withSuccessHandler(closeForm).alert(currentInfo.error.title,currentInfo.error.message,undefined);
+      }else{
+        //console.log(`populateForm(${currentInfoJSON})`);
+        this.editItem=currentInfo.data;
+        this.editItemRow=currentInfo.row;
+        //console.log(`populateForm(${currentInfo})`);
+        /*
+          activeSheet:activeSheet,
+          activeSheetName:activeSheetName,
+          cell:cell,
+          range:range,
+          row:row,
+          col:col,
+          width:width,
+          height:height,
+          A1not:A1not      
+        */
+        for (var i = 0; i < elements.length; i++) {
+          var element=elements[i];
+          var key=element.key;
+          var item = currentInfo.data.filter(function(item){return item.key.toUpperCase()===key.toUpperCase()})[0];
+          addFormItem(element,item);
+        }     
+        showSubmitButton(true);
+        hideSpinner(); 
+      }
     }
-    function addFormItem(element,value){
-      console.log(`addFormItem(${JSON.stringify(element)},'${value}')`);
+    function addFormItem(element,item){
+      var value=item.value;
+      var colIndex=item.column;
       var colWidth=12;
       switch (element.type) {
         case 'date':
@@ -293,6 +300,7 @@
           var d = dt.getUTCDate().toString().padStart(2,'0');
           var y = dt.getUTCFullYear();
           value = `${y}-${m}-${d}`;
+          item.value=value;
 
           break;
 
@@ -311,21 +319,21 @@
       }
       switch (element.type) {
         case 'string':
-          html+=`<input type="text" class="form-control" id="${element.key}" placeholder="${element.placeholder}" value="${value}">\n`;
+          html+=`<input type="text" class="form-control" data-id="data" id="${element.key}" placeholder="${element.placeholder}" value="${value}">\n`;
           html+=`<label class="formLabel" for="floatingInputValue">${element.label}</label>\n`;
           break;
         case 'date':
-          html+=`<input class="form-control" type="date" id="${element.key}" name="${element.key}" value="${value}" placeholder="${element.placeholder}">\n`;
+          html+=`<input class="form-control" type="date" data-id="data" id="${element.key}" name="${element.key}" value="${value}" placeholder="${element.placeholder}">\n`;
           html+=`<label class="formLabel" for="floatingInputValue">${element.label}</label>\n`;
           break;
 
         case 'textarea':
-          html+=`<textarea rows="${element.rows}" class="form-control" id="${element.key}" placeholder="${element.placeholder}">${value}</textarea>\n`;
+          html+=`<textarea rows="${element.rows}" class="form-control" data-id="data" id="${element.key}" placeholder="${element.placeholder}">${value}</textarea>\n`;
           html+=`<label class="formLabel" for="floatingInputValue">${element.label}</label>\n`;
           break;
 
         case 'numeric':
-          html+=`<input type="number" class="form-control" id="${element.key}" placeholder="${element.placeholder}" value="${value}" min="${element.min}" max="${element.max}">\n`;
+          html+=`<input type="number" class="form-control" data-id="data" id="${element.key}" placeholder="${element.placeholder}" value="${value}" min="${element.min}" max="${element.max}">\n`;
           html+=`<label class="formLabel" for="floatingInputValue">${element.label}</label>\n`;
           break;
           
@@ -341,81 +349,29 @@
       console.log(`Text copied to clipboard: ${text}`);
     }
 
-    function gotEditItem(codeEditItemJSON){
-      if (codeEditItemJSON){
-        var selectedDataASINRow=JSON.parse(codeEditItemJSON);
-        console.log(`gotEditItem(${JSON.stringify(selectedDataASINRow)})`);
-        if (selectedDataASINRow&&selectedDataASINRow.item){
-          console.log(`this.editItem before -> ${JSON.stringify(this.editItem)}`);
-          this.editItem=selectedDataASINRow.item;
-          console.log(`this.editItem after -> ${JSON.stringify(this.editItem)}`);
-          this.editItemRow=selectedDataASINRow.foundRow;
-          populateForm();
-          $('#submitButton').html('Save');
-        } 
-      }
-      google.script.run.withSuccessHandler(init).hasAPI();
-    }
-    function _old(empty=false){
-      console.log(`populating Form`);
-      $('#acceptedDate').val(empty?'':this.editItem.ACCEPTEDDATE);
-      $('#asin').val(empty?'':this.editItem.ASIN);
-      $('#detail').val(empty?'':this.editItem.DETAIL);
-      $('#name').val(empty?'':this.editItem.ITEM);
-      $('#notes').val(empty?'':this.editItem.NOTES);
-      $('#photos').val(empty?'':this.editItem.PHOTOCOUNT);
-      $('#rejectedDate').val(empty?'':this.editItem.REJECTEDDATE);
-      $('#stars').val(empty?'':this.editItem.STARS);
-      $('#submittedDate').val(empty?'':this.editItem.SUBMITTEDDATE);
-      $('#title').val(empty?'':this.editItem.TITLE);
-      $('#videos').val(empty?'':this.editItem.VIDEOCOUNT);
-    }
-    function postAPICheck(useHasAPI){
-      hasAPI=userHasAPI;
-      google.script.run.withSuccessHandler(init).hasAPI();
-    }
-    function loadProductConfirm(evt){
-      console.log('loadProductConfirm');
-        if (!evt.ctrlKey){
-          //var ui=SpreadsheetApp.getUi();
-          //var choice=ui.alert('ASIN API Warning',`Loading the product info will use an ASIN API token.\n\n<i>This dialog box can be skipped by holding down the CTRL key when clicking the Load button</i>\n\n[OK] Load the product info\n[CANCEL] Return to form`,ui.ButtonSet.OK_CANCEL);      
-          var clickedOK=confirm(`Loading the product info will use an ASIN API token.\n\nThis dialog box can be skipped by holding down the CTRL key when clicking the Load button\n\n[OK] Load the product info\n[CANCEL] Return to form`);      
-          if (!clickedOK){
-            console.log('loadProductConfirm canceled.');
-            return;
-          }
-        } else {
-          console.log('loadProductConfirm skipping dialog due to depressed CTRL key.');
+    //function submit(evt){
+    function submit(){
+      console.log('submit()');
+      var vm=this;
+      var data=[];
+      $('[data-id="data"]').each(function(index){
+        var id=$(this).attr("id");
+        var element=vm.elements.filter(function(element){return element.key===id})[0];
+        var editItemProp=vm.editItem.filter(function(item){return item.key===id})[0];
+        var currentValue = $(`#${id}`).val();
+        var origValue=editItemProp.value;
+        console.log(`Comparing ${id}...`);
+        console.log(`          ${origValue} [${typeof origValue}] vs. ${currentValue} [${typeof currentValue}]`);
+        if (typeof origValue=="number"){
+          currentValue=Number(currentValue);
         }
-        loadProductInfo($('#asin').val());
-    }
+        if (currentValue!==origValue){
+          editItemProp.value=currentValue;
+          data.push(editItemProp);
+        }
+      });
 
-    function loadProductInfo(asin){
-      console.log(`Loading product info for ${asin}`);      
-      retrieveProductData(asin);
-    };
-
-    function init(userHasAPI){
-      //$('#collapseOne').collapse('toggle');
-      $('.accordion-button').on('focus', function(){
-        $(this).parent().parent().children('.accordion-collapse').collapse('toggle');
-        var accId = $(this).attr('data-bs-target');
-        console.log(`accId='${accId}'`);
-        var firstInput=$(`${accId} input:first`);
-        console.log(`first input = ${firstInput.attr('id')}`);
-        firstInput.focus();
-      });      
-      hasAPI=userHasAPI;
-      enableForm();
-    }
-    /* Asynchronous */
-    function retrieveProductData(asin) {
-      showSpinner("Retrieving product data from API...");
-      google.script.run.withSuccessHandler(populateProductFields).retrieveProductData(asin);
-      //disableForm();
-      return true;
-    }
-    function submit(evt){
+      /*
       var productData={
         accepteddate:$('#acceptedDate').val(),
         asin: $('#asin').val(),
@@ -438,11 +394,15 @@
         videocount:$('#videos').val(),
         existingRow:this.editItemRow??undefined,
       };
+      */
 
-      if (evt.ctrlKey) productData={"asin":"B0BS49TQ2R","category":"Tools & Home Improvement","detail":"My detail","etv":"$1.23","item":"Sports Card Storage Box/Carrying Case - Waterproof Organizer and Card Holder Protects All Graded and Ungraded Trading Cards Securely - PSA BGS SGC and More 3 Row (13.5 x 12 x 7)","msrp":"$69.99","notes":"My notes","order":"113-9816556-4325855","ordereddate":"2023-11-01","photocount":"2","receiveddate":"2023-11-03","rejecteddate":"2023-11-08","shippeddate":"2023-11-02","stars":"3","submitteddate":"2023-11-06","title":"My title","videocount":"1"};
-
-      console.log(`submit JSON = ${JSON.stringify(productData)}`);
-      google.script.run.withSuccessHandler(complete).updateSheetWithItem(productData);
+      //if (evt.ctrlKey) productData={"asin":"B0BS49TQ2R","category":"Tools & Home Improvement","detail":"My detail","etv":"$1.23","item":"Sports Card Storage Box/Carrying Case - Waterproof Organizer and Card Holder Protects All Graded and Ungraded Trading Cards Securely - PSA BGS SGC and More 3 Row (13.5 x 12 x 7)","msrp":"$69.99","notes":"My notes","order":"113-9816556-4325855","ordereddate":"2023-11-01","photocount":"2","receiveddate":"2023-11-03","rejecteddate":"2023-11-08","shippeddate":"2023-11-02","stars":"3","submitteddate":"2023-11-06","title":"My title","videocount":"1"};
+      var submitData = {
+        data:data,
+        row:this.editItemRow
+      };
+      console.log(`submit JSON = ${JSON.stringify(submitData)}`);
+      google.script.run.withSuccessHandler(complete).updateSheetWithItem(submitData);
     }
     function complete(results)
     {
@@ -456,7 +416,7 @@
     }
     function populateProductFields(productData){
       hideSpinner();
-      console.log(`populateProductFields(productData) JSON=${JSON.stringify(productData)}`);
+      //console.log(`populateProductFields(productData) JSON=${JSON.stringify(productData)}`);
       if (!productData){
         displayError("Error retrieving product data from API");
       } else if (productData.error) {
@@ -465,7 +425,6 @@
         $('#name').val(productData.productData.title);
         $('#category').val(productData.productData.category);
         $('#msrp').val(productData.productData.price).focus();
-        console.log(`timer: ${productData.timer}`);
       }
     }
     /* UI Control */
@@ -519,94 +478,11 @@
         element.val(currencyFormatter.format(val));
       }
     }
-    function validASINFormat(asin){
-      var match=asin.match(/([0-9]{10})|B0([A-Z0-9]{8})/g);
-      var valid=(match&&match.length===1);
-      return {
-        valid:valid,
-        formattedASIN:match
-      }
-    }
-    function formatAndValidateASIN(){
-      clearAndHideASINError();
-      var asin = $(`#asin`).val().trim();
-      var formatCheck=validASINFormat(asin);
-      if (!formatCheck.valid) {
-        showInvalidASIN({asin:asin});
-      } else {
-        var spinnerMsg = `Loading image for ASIN ${asin}...`;
-        if (hasAPI) spinnerMsg = `${spinnerMsg}<br/>NOTE: This is not done via a call to the ASIN API.`;
-        //showSpinner(spinnerMsg);
-        console.log(`formatAndValidateASIN -> isLiveASIN(${formatCheck.formattedASIN})`);
-        google.script.run.withSuccessHandler(handleASINDisplay).isLiveASIN(formatCheck.formattedASIN);
-      }
-    }
-    function handleASINDisplay(results){
-      if (results.isValid){
-        showValidASIN(results);
-      } else {
-        showInvalidASIN(results);
-      }
-      hideSpinner();
-    }
-    function showInvalidASIN(results){
-      var itemImage = $('#itemImage');
-      itemImage.hide();
-      itemImage.attr('src','');
-      $(`#asin`).val('').focus();
-      if (results.asin){
-         $('#asin_error').html(`${results.asin} is not a valid ASIN`).show();
-      } 
-      showAPIButton(false);
-      showSubmitButton(false);
-    }
-    function clearAndHideASINError(){
-      $('#asin_error').html(``).hide();
-    }
-    function showValidASIN(results){
-      console.log('showValidASIN() start');
-
-      var itemImage = $('#itemImage');
-      itemImage.show();
-      itemImage.attr('src',results.img);
-      $(`#asin`).val(results.asin);
-      clearAndHideASINError();
-      if (hasAPI){
-        showAPIButton(true);
-      }
-      showSubmitButton(true);
-      console.log('showValidASIN() end');
-    }
-    function showAPIButton(accessible){
-      if (accessible){
-        $('#formAPIButton').show();
-      } else {
-        $('#formAPIButton').hide();
-      }
-    }
     function showSubmitButton(accessible){
       if (accessible){
         $('#formSubmitButton').show();
       } else {
         $('#formSubmitButton').hide();
-      }
-    }
-    function formatOrderNum(){
-      var element =$('#orderNum');
-      var orderNum=element.val().trim();
-      if (!orderNum || orderNum.length===0) return;
-      parsed = orderNum.match(/[\d]{3}-[\d]{7}-[\d]{7}|[\d]{17}/g);
-      console.log(`parsed = ${parsed}`);
-      console.log(`parsed.indexOf('-')= ${parsed.indexOf('-')}`);
-      if (parsed){
-        parsed=parsed[0];
-        if (parsed.indexOf('-')===-1){
-          element.val(`${parsed.substring(0,3)}-${parsed.substring(3,10)}-${parsed.substring(10,17)}`);
-        }else{
-          element.val(parsed);
-        }
-      } else {
-        element.val('');
       }
     }
   </script>
@@ -626,7 +502,7 @@
           <div id="itemForm" class="row form">
           </div>
           <div id="formSubmitButton" class="col-2">
-            <button class="btn btn-primary" onclick="saveData" id="submitButton" type="button" title='Submit'>Save</button>
+            <button class="btn btn-primary" onclick="submit()" id="submitButton" type="button" title='Submit'>Save</button>
           </div>
           <div id="overlay"></div>            
           <div id="spinnerContainer">
