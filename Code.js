@@ -6,17 +6,18 @@
 
 var loggingEnabled = true;
 var editItem;
+var headerRow=1;
 
 function startup() {
   try {  
     toast('Loading Vine config and menu','Vine Menu Status',3);
 
     var mainMenu = SpreadsheetApp.getUi().createMenu('🍃Vine');
-    //mainMenu.addItem("Bulk Input","showBulkInput");
-    var importMenu=SpreadsheetApp.getUi().createMenu('Import...');
-    importMenu.addItem("...from Amazon Vine Itemized Report","showAVIRImport");
-    importMenu.addItem("...from previous QwicksetTracking sheet","showQTImport");
-    mainMenu.addSubMenu(importMenu);
+    mainMenu.addItem("Import Test","showInput");
+    //var importMenu=SpreadsheetApp.getUi().createMenu('Import...');
+    //importMenu.addItem("...from Amazon Vine Itemized Report","showAVIRImport");
+    //importMenu.addItem("...from previous QwicksetTracking sheet","showQTImport");
+    //mainMenu.addSubMenu(importMenu);
     mainMenu.addItem("Current Item Review Form (Ctrl+Alt+Shift+0)","showReviewForm");
     mainMenu.addSeparator();
     mainMenu.addItem("Future Features","showFutureFeatures");
@@ -147,8 +148,43 @@ function regexKeyValue(key,value){
 }
 function alert(title,message,buttons){
   var ui = SpreadsheetApp.getUi();
-  if (!buttons) buttons=ui.ButtonSet.OK;
-  ui.alert(title, message, buttons);
+  if (!buttons){
+    buttons=ui.ButtonSet.OK;
+  } else if (typeof buttons ==='string'){
+    switch (buttons.toUpperCase()) {
+      case 'OK_CANCEL':
+        buttons=ui.ButtonSet.OK_CANCEL;
+        break;
+    
+        case 'YES_NO':
+          buttons=ui.ButtonSet.YES_NO;
+          break;
+      
+        case 'YES_NO_CANCEL':
+          buttons=ui.ButtonSet.YES_NO_CANCEL;
+          break;
+        
+        default:
+        buttons=ui.ButtonSet.OK;
+    }
+  }
+  switch (ui.alert(title, message, buttons)) {
+    case ui.Button.YES:
+      return 'YES';
+  
+    case ui.Button.NO:
+      return 'NO';
+  
+    case ui.Button.CANCEL:
+      return 'CANCEL';
+  
+    case ui.Button.OK:
+      return 'OK';
+  
+    default:
+      return;
+  }
+  
 }
 function showAbout() {
   var widget = HtmlService.createTemplateFromFile("About.html").evaluate().setWidth(500).setHeight(650);
@@ -166,6 +202,10 @@ function showAVIRImport() {
   var widget = HtmlService.createHtmlOutputFromFile("AVIR_Import.html").setWidth(1000).setHeight(1000);
   SpreadsheetApp.getUi().showModalDialog(widget, " ");
 }
+function showInput() {
+  var widget = HtmlService.createHtmlOutputFromFile("Import.html").setWidth(1000).setHeight(1000);
+  SpreadsheetApp.getUi().showModalDialog(widget, " ");
+}
 function showQTImport() {
   var widget = HtmlService.createHtmlOutputFromFile("QT_Import.html").setWidth(1000).setHeight(1000);
   SpreadsheetApp.getUi().showModalDialog(widget, " ");
@@ -173,6 +213,21 @@ function showQTImport() {
 function showReviewForm() {
   var widget = HtmlService.createHtmlOutputFromFile("ReviewForm.html").setWidth(1000).setHeight(1000);
   SpreadsheetApp.getUi().showModalDialog(widget, " ");
+}
+function getHeaderColumns(upperCase=false){
+  var sheet = getSheetByName("Data");
+  var headerRange = sheet.getRange("1:1");
+  var headerRangeValues = headerRange.getValues()[0];
+  var headers=[]
+  headerRangeValues.every(function(value){
+    if (!value) return false; //bail, found a gap
+    if (upperCase)
+      headers.push(value.toUpperCase());
+    else
+      heacers.push(value);
+    return true;
+  });
+  return headers;
 }
 
 function setCellValue(sheet, row, column, value) {
@@ -188,14 +243,23 @@ function getAllASINS(){
   if (asinValues)
   {
     console.log(`ASINValues = ${JSON.stringify(asinValues)}`);
-    asinValues = asinValues.map(function(asin){ if(asin[0] && asin[0].length>0) ASINS.push(asin[0]);}) ;
+    asinValues = asinValues.map(function(asin,index){ 
+      if(asin[0] && asin[0].length>0){
+        ASINS.push({
+          ASIN:asin[0],
+          row:index+2
+        });
+      }
+    });
     console.log(`ASINValues = ${JSON.stringify(ASINS)}`);
     return ASINS;
   }
 }
 function nextNewRow(){
   var sheet = getSheetByName("Data");
-  return sheet.getLastRow()+1;
+  var row=sheet.getLastRow()+1;
+  console.log(`nextNewRow()=${row}`)
+  return row;
   /*
   var asinValues = getAllASINS();
   console.log(`ASNValues=${asinValues}`);

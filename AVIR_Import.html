@@ -132,13 +132,20 @@
         {
             display:none;
         }
+        input[type=checkbox].tiny
+        {
+        /* Double-sized Checkboxes */
+        -ms-transform: scale(.5); /* IE */
+        -moz-transform: scale(.5); /* FF */
+        -webkit-transform: scale(.5); /* Safari and Chrome */
+        -o-transform: scale(.5); /* Opera */
+        padding: 2px;
+        }        
     </style>
 </head>
 
 <body>
-    <h2>Import Amazon Vine Itemized Report
-        <h3 /><button id="btnImport" class="btn btn-primary right parseProcess disabled" onclick="getLastRow()">Import
-            Selected</button>
+    <h2>Import Amazon Vine Itemized Report<h2/>
         <div id='preworkContainer' class='preworkProcess userContainer'>
             <h3>Step 1 of 3: In your worksheet on the Ledger/Data tab...</br>
                 <div class="warningbox">WARNING: This will make changes to your data sheet. Although CTRL+Z may help rollback the changes, it is highly recommend you make a backup copy before proceeding.</div>
@@ -169,12 +176,13 @@
                 </div>
             </div>
             <div id='foundImportContainer'>
-                <h2 id="foundImportHeading">Existing Import Items<br><i style="font-size:smaller">These items have been found in your existing data</i></h2>
+                <h2 id="foundImportHeading">Existing Import Items<br></h2><i style="font-size:medium">These items have been found in your existing data. Selected items will be overwritten with selected columns.</i><br/>
                 <button id="toggle" onclick="toggleChecks('#foundDataTable')" class="btn btn-secondary">Toggle Selected</button>
                 <div id='foundDataTable'>
                 </div>
             </div>
             <button onclick="closeThis()" class="btn btn-secondary">Cancel</button>
+            <button id="btnImport" class="btn btn-primary right parseProcess disabled" onclick="confirmFoundColumns()">Import Selected</button>
         </div>
         <div id='statusContainer' class='statusProcess userContainer'>
             <h3>Import selected items...</h3>
@@ -302,10 +310,17 @@
         
     }
 
-    function getTableHeading(selector) {
+    function getTableHeading(checkboxes,justTheASINS) {
         var tableHtml = '<table class="table table-stiped"><thead>';
         headings.forEach(function (heading) {
-            tableHtml = `${tableHtml}<th scope='col'>${heading}</th>`;
+            var extra = '';
+            if (checkboxes &&
+                heading.toUpperCase()!=='IMAGE' &&
+                heading.toUpperCase()!=='SELECT') {
+                extra=`<br/><input class='tiny' type="checkbox" id='colchk_${heading}'/>`;
+            }
+            if (!justTheASINS || heading.toUpperCase()==='ASIN')
+                tableHtml = `${tableHtml}<th scope='col'>${heading}${extra}</th>`;
         });
         tableHtml = `${tableHtml}</tr></thead><tbody>`;
         return tableHtml;
@@ -317,7 +332,7 @@
             ('#btnImport').addClass('disabled');
         }
     }
-    function getTableItem(selector, item) {
+    function getTableItem(item,justTheASINS) {
         var foundImgWidth = 25;
         var tableHtml = `<tr>`;
         headings.forEach(function (heading) {
@@ -336,7 +351,8 @@
                     heading.toLowerCase() == "detail") {
                     if (value.length > 50) value = `${value.substring(0, 50)}...`;
                 }
-                tableHtml = `${tableHtml}<td>${value}</td>`;
+                if (!justTheASINS || heading.toUpperCase()==='ASIN')
+                    tableHtml = `${tableHtml}<td>${value}</td>`;
             }
         });
         tableHtml = `${tableHtml}</tr>`;
@@ -346,19 +362,50 @@
         return "https://ws-na.amazon-adsystem.com/widgets/q?_encoding=UTF8&MarketPlace=US&ASIN=" + asin + "&ServiceVersion=20070822&ID=AsinImage&WS=1&Format=_SL150_";
     }
 
-    function getTableFooter(selector) {
+    function getTableFooter() {
         return `</tbody></table>`;
     }
 
     function renderData(splitData, selector) {
-        var tableHtml = `${getTableHeading(selector)}`;
+        var headingCheckboxes=(selector.toUpperCase()==='#FOUNDDATATABLE');
+        var justTheASINS=(selector.toUpperCase()==='#STATUSDATATABLE');
+        var tableHtml = `${getTableHeading(headingCheckboxes,justTheASINS)}`;
         var imgASINS=[];
         splitData.forEach(function (item) {
-            tableHtml = `${tableHtml}${getTableItem(selector, item)}`;
+            tableHtml = `${tableHtml}${getTableItem(item,justTheASINS)}`;
             imgASINS.push(item.ASIN);
         });
-        tableHtml = `${tableHtml}${getTableFooter(selector)}`;
+        tableHtml = `${tableHtml}${getTableFooter()}`;
         $(selector).append(tableHtml);
+    }
+    function getSelectedFoundColumns(){
+        return $('div#foundDataTable input[id^="colchk_"]:checkbox:checked').map(function(){return this.id;}).get();
+    }
+    function getSelectedFoundColumnsClean(){
+        var selectedFoundColumns=getSelectedFoundColumns();
+        var columns= selectedFoundColumns.map(function(column){ return column.replaceAll('colchk_','');})
+        console.log(`getSelectedFoundColumnsClean()=${columns}`);
+        return columns;
+    }
+    function confirmFoundColumns(){
+        var foundsSelectedCount=$('div#foundDataTable input[id^="chk_"]:checkbox:checked').length;
+        var colsSelected=getSelectedFoundColumns();
+        var colsSelectedCount=colsSelected.length;
+        console.log(`confrirmFoundColumns()\n     foundsSelected=${foundsSelectedCount}\n     colsSelected=${colsSelectedCount}`);
+        if (foundsSelectedCount>0){
+            if (colsSelectedCount==0){
+                google.script.run.alert('No found columns selected to update',`${foundsSelectedCount} items selected to update but 0 columns selected to overwrite.\n\nPlease select at least one column's data to overwrite for the selected items.`, 'OK');    
+            } else {
+                google.script.run.withSuccessHandler(foundContinueHandler).alert('Confirm found items update',`${foundsSelectedCount} existing sheet items will have the following columns updated:\n\n${getSelectedFoundColumnsClean().join('\n')}\n\nContinue?.`, 'YES_NO');    
+            }
+        }
+    }
+    function foundContinueHandler(confirm){
+        if (confirm && (confirm==='OK' || confirm==='YES')){
+            getLastRow();
+        } else {
+            console.log('Canceled');
+        }
     }
     function getLastRow() {
         google.script.run.withSuccessHandler(importItems).nextNewRow();
@@ -368,14 +415,23 @@
         $('.parseProcess').hide();
         $('.statusProcess').show();
         var ASINS = [];
-        $('div#newDataTable input:checkbox:checked').each(function (index) {
+        $('div#newDataTable input[id^="chk_"]:checkbox:checked').each(function (index) {
             ASINS.push($(this).attr("id").replace('chk_', ''));
         });
-        $('div#foundDataTable input:checkbox:checked').each(function (index) {
+        if (ASINS&&ASINS.length>0){
+            updateASINS(ASINS,firstRow);
+            ASINS=[];
+        } 
+        $('div#foundDataTable input[id^="chk_"]:checkbox:checked').each(function (index) {
             ASINS.push($(this).attr("id").replace('chk_', ''));
         });
-        console.log(`Selected ASINS = ${JSON.stringify(ASINS)}`);
-        if (!ASINS) return;
+        if (ASINS&&ASINS.length>0){
+            updateASINS(ASINS,firstRow,getSelectedFoundColumnsClean());
+        }
+    }
+    function updateASINS(ASINS,firstRow,selectedColumns=undefined){
+        console.log(`updateASINS() ${ASINS.length} ASINS passed in. ${!selectedColumns?0:selectedColumns.length} selected Columns passed in.`);
+        if (!ASINS||ASINS.length===0) return;
 
         var dataSelected = data.filter(function (item) {
             return ASINS.indexOf(item.ASIN) >= 0;
@@ -384,10 +440,16 @@
         dataSelected.forEach(function (data) {
             var newData = {};
             headings.forEach(function (heading) {
-                if (heading.toLowerCase() === "select")
+                if (heading.toUpperCase() === "SELECT"){
                     newData.Saved = false;
-                else
-                    newData[heading] = data[heading];
+                } else {
+                    if (!selectedColumns || selectedColumns.length===0 || selectedColumns.filter(function(column){return column.toUpperCase()===heading.toUpperCase();}).length!==0){
+                        newData[heading] = data[heading];
+                        console.log(`     newData[${heading}] assigned.`);
+                    } else {
+                        console.log(`     did not find '${heading.toUpperCase()}' within ${JSON.stringify(selectedColumns)}`);
+                    }
+                }
             });
             dataToSave.push(newData);
         });
@@ -414,7 +476,7 @@
     function addItemToSheet(results){
         console.log('\n\n\n****************************');
         console.log(`addItemToSheet()\n`);
-        console.log(`     items:{suppressed}\n`);
+        console.log(`     items (ASINS): ${results.items.filter(function(item){return item.ASIN;})}\n`);
         console.log(`     batchSize:${results.batchSize}\n`);
         console.log(`     index:${results.index}\n`);
         console.log(`     row:${results.row}\n`);
