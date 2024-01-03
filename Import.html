@@ -129,6 +129,7 @@
             margin-top:5px;
             margin-bottom:5px;
         }
+        #importTypeSelectContainer,
         #foundImportContainer,
         #newImportContainer
         {
@@ -147,7 +148,7 @@
 </head>
 
 <body>
-    <div id="showTypeSelectContainer">
+    <div id="importTypeSelectContainer">
         <h2>Where are you importing from?</h2><br/>
         <div class="warningbox">WARNING: Importing data will make changes to your data sheet. Although CTRL+Z may help rollback the changes, it is highly recommend you make a backup copy before proceeding.</div><br/>
         <div class="form-check form-switch">
@@ -159,7 +160,7 @@
             <label clss="form-check-label" for="switch_QT">QwicksetTracking Sheet</label>
         </div><br/><br/>
         <button onclick="closeThis()" class="btn btn-secondary">Cancel</button>
-        <button id='btnGetData' onclick="showPrework()" class="btn btn-primary right">Next</button>
+        <button id='btnShowPrework' onclick="showPrework()" class="btn btn-primary right">Next</button>
     </div>
     <div id="AVIRContainer" class="avirProcess prework">
         <h2>Import Amazon Vine Itemized Report</h2>
@@ -228,35 +229,101 @@
     </div>
 </body>
 <script>
-    class SheetItem{
-        ordernumber;
-        ordered;
-        shipped;
-        received;
-        cancelled;
-        asin;
-        itemname;
-        category;
-        etv;
-        msrp;
-        submitteddate;
-        accepteddate;
-        rejecteddate;
-        canceleddate;
-        stars;
-        photos;
-        video;
-        title;
-        detail;
-        notes;
-
-        constructor(){}
-
-        map(inputobject){
-
+    class ImportItemElement{
+        _value;
+        _importElement;
+        _columnIndex;
+        constructor(value,importElement,columnIndex){
+            this._value=value;
+            this._importElement=importElement;
+            this._columnIndex=columnIndex;
+            console.log(`ImportItemElement(${value},${importElement},${columnIndex})`);
+        }
+        get value(){
+            return this._value;
+        }
+        get importElement(){
+            return this._importElement;
+        }
+        get columnIndex(){
+            return this._columnIndex;
         }
     }
-
+    class ImportItem{
+        _hasProps;
+        constructor(){
+            this._hasProps=false;
+        }
+        addProperty(property,value,importElement,columnIndex){
+            console.log(`ImportItems.addProperty(${property},${value},${importElement},${columnIndex})`);
+            this[property]=new ImportItemElement(value,importElement,columnIndex);
+            this._hasProps=true;
+        }
+        get hasProps(){
+            return this._hasProps;
+        }
+    }
+    class ImportItems{
+        constructor(){
+            this._importItems=[];
+        }
+        add(importItem){
+            this._importItems.push(importItem);
+        }
+        get all(){
+            return this._importItems;
+        }
+        get len(){
+            return this._importItems.length;
+        }
+    }
+    class Header{
+        _element;
+        _sheetElement;
+        constructor(element,sheetElement){
+            this._element=element;
+            this._sheetElement=sheetElement;
+        }
+        get element(){
+            return this._element;
+        }
+        get sheetElement(){
+            return this._sheetElement;
+        }
+    }
+    class Headers{
+        headers=[];
+        construction(){
+        }
+        add(element,sheetElement){
+            console.log(`add(${element},${sheetElement})`);
+            let header=new Header(element,sheetElement);
+            console.log(`     header=${JSON.stringify(header,null,2)})`);
+            console.log(`     (before push) headers=${JSON.stringify(this.headers,null,2)})`);
+            this.headers.push(header);
+            console.log(`     (after push) headers=${JSON.stringify(this.headers,null,2)})`);
+            return header;
+        }
+        get all(){
+            return this.headers;
+        }
+        get len(){
+            return this.headers.length;
+        }
+        get empty(){
+            return (!this.headers || this.headers.length===0);
+        }
+        get(index){
+            return this.headers[index];
+        }
+        unshift(element,sheetElement){
+            let header=new Header(element,sheetElement);
+            this.headers.unshift(header);
+        }
+        prepend(headers){
+            this.headers=this.headers.concat(this.headers);
+        }
+    }
     class Utils{
         constructor(){}
         
@@ -266,18 +333,18 @@
             console.clear();
             Utils.log(`TableToObjectArray([${dataString.length} chars], '${endLineDelimiter}')`);
             var dataLines = dataString.split(endLineDelimiter).map((line) => line.split('\t'));
-            var headerLine;
-            var importItems=[];
+            var headerLines = new Headers();
+            var importItems=new ImportItems();
             var error;
             
             Utils.log(`Processing ${dataLines.length} dataLines`);
             dataLines.every(function(line){
                 var found=false;
                 var index=-1;
-                var importItem={};
-                if (!headerLine || line.length>=headerLine.length){
+                var importItem=new ImportItem();
+                if (headerLines.empty || line.length>=headerLines.len){
                     line.every(function(element){
-                        if(!headerLine){
+                        if(headerLines.empty){
                             //find the first with "ASIN" -- assumption this is the header
                             if (Utils.StringContains('asin',element)){
                                 Utils.log(`     found header line`);
@@ -287,40 +354,52 @@
                             return true;    //keep looking
                         } else {
                             index++;
-                            var prop=headerLine[index];
-                            if(prop&&prop.sheetElement) //only add if sheetElement was found
-                                importItem[prop.sheetElement]={
-                                    value:element,
-                                    importElement:prop.element,
-                                };
+                            var prop=headerLines.get(index);
+                            if(prop&&prop.sheetElement){ //only add if sheetElement was found
+                                Utils.log(`importItem before addProperty:${Utils.JSON(importItem)}`);
+                                Utils.log(`SheetHeadings = ${Utils.JSON(SheetHeadings)}`);
+                                var columnIndex=SheetHeadings.filter(function(heading){return heading.value===prop.sheetElement;})[0].columnIndex;
+                                Utils.log(`columnIndex=${columnIndex}`);
+                                importItem.addProperty(
+                                    prop.sheetElement,
+                                    element,
+                                    prop.element,
+                                    columnIndex
+                                );
+                                Utils.log(`importItem after addProperty:${Utils.JSON(importItem)}`);
+                            }
                             return true;
                         }
                     });
                 } else {
-                    Utils.log(`line skipped due to it having ${line.length} compared to headerLine having ${headerLine.length}`);
+                    Utils.log(`line skipped due to it having ${line.length} compared to headerLines having ${headerLines.len}`);
                 }
-                if(!headerLine){
+                if(headerLines.empty){
                     if(found){
-                        var cleanLine=[]
+                        var cleanLines= new Headers();
                         line.forEach(function(element){
                             if(element){
                                 var cleanElement=Utils.CleanString(element).toUpperCase();
                                 var sheetElement=Utils.LookupSheetElement(cleanElement);
-                                cleanLine.push({
-                                    element:cleanElement,
-                                    sheetElement:sheetElement,
-                                });
+                                cleanLines.add(
+                                    element=cleanElement,
+                                    sheetElement=sheetElement
+                                );
                             }
                         });
-                        headerLine=cleanLine; //assign current top line to headerLine and pop it from dataLines
+                        headerLines=cleanLines;
                     } 
                 } else {
-                    if (!Utils.IsEmptyObject(importItem)) importItems.push(importItem);
+                    Utils.log(`importItem=${Utils.JSON(importItem)}`);
+                    if (importItem.hasProps) importItems.add(importItem);
                 }
                 return true;
-            });         
-            headerLine=[{element:'SELECT',sheetElement:'*'},{element:'IMAGE',sheetElement:'*'}].concat(headerLine);
-            importItems.forEach(function(item){
+            });        
+            let specialHeaders = new Headers();
+            specialHeaders.add('SELECT','*');
+            specialHeaders.add('IMAGE','*');
+            headerLines.prepend(specialHeaders);
+            importItems.all.forEach(function(item){
                 item.SELECT={
                     value:false
                 };
@@ -328,28 +407,52 @@
                     value:''
                 };
             });
-            if (headerLine){
-                Utils.log(` headerLine=${JSON.stringify(headerLine).replaceAll(',',',\n')}`);
+            if (headerLines.len){
+                Utils.log(` headerLines=${JSON.stringify(headerLines).replaceAll(',',',\n')}`);
             }
-            if (importItems.length){
+            if (importItems.len){
                 var i=0;
-                importItems.forEach(function(item){
+                importItems.all.forEach(function(item){
                     i++;
                     Utils.log(`importItem #${i}:${JSON.stringify(item).replaceAll('},','},\n     ')}`);
                 });
             }
+
             return {
-                headings:headerLine,
-                items:importItems
+                headings:headerLines.all,
+                items:importItems.all
             };
         }
+        static NormalizeSheetHeadings(sheetHeadings){
+            var issueColumns=[];
+            if (sheetHeadings.length<ExpectedSheetHeadingCount){
+                google.script.run.withSuccessHandler(closeThis).alert('DATA sheet column error',`Unable to continue.\n\nExpected ${ExpectedSheetHeadingCount} DATA sheet columns but found ${sheetHeadings.length}.\n\nEnsure there are no blank columns -- the first 20 columns should have headers and data.`,'OK');
+                return;
+            } else {
+                sheetHeadings.forEach(function(heading){
+                    var lookup = Utils.LookupSheetElement(Utils.CleanString(heading.value));
+                    if (!lookup){
+                        issueColumns.push(heading.value);
+                    }
+                    if (issueColumns.length===0){
+                        heading.value=lookup;
+                    }
+                });
+                if (issueColumns.length>0){
+                    google.script.run.withSuccessHandler(closeThis).alert('DATA sheet column error',`Unable to continue.\n\nThe following unexpected columns werer found on the DATA sheet:\n\n${issueColumns.join('\n')}`,'OK');
+                    return;
+                } else {
+                    return sheetHeadings;
+                }
+            }
+        }
         static LookupSheetElement(element){
-            switch (element) {
+            switch (element.toUpperCase()) {
                 case 'ORDERNUMBER':
                 case 'ORDERED':
                 case 'SHIPPED':
                 case 'RECEIVED':
-                case 'CANCELED':
+                case 'CANCELLED':
                 case 'ASIN':
                 case 'ITEMNAME':
                 case 'CATEGORY':
@@ -358,22 +461,27 @@
                 case 'SUBMITTEDDATE':
                 case 'ACCEPTEDDATE':
                 case 'REJECTEDDATE':
-                case 'CANCELEDDATE':
+                case 'CANCELLEDDATE':
                 case 'STARS':
                 case 'PHOTOS':
-                case 'VIDEO':
+                case 'VIDEOS':
                 case 'TITLE':
                 case 'DETAIL':
                 case 'NOTES':
-                    return element;
+                    return element.toUpperCase();
 
                 case 'VIDEO': return 'VIDEOS'
-                case 'CANCELLED': return 'CANCELED'
-                case 'CANCELLEDDATE': return 'CANCELEDDATE'
+                case 'CANCELED': return 'CANCELLED'
+                case 'CANCELEDDATE': return 'CANCELLEDDATE'
                 case 'PRODUCTNAME': return 'ITEMNAME'
                 case 'ORDERDATE': return 'ORDERED'
                 case 'SHIPPEDDATE': return 'SHIPPED'
                 case 'ESTIMATEDTAXVALUE': return 'ETV'
+                case 'DETAILS': return 'DETAIL'
+
+                case 'ORDERNUM':
+                case 'ORDER#':
+                    return 'ORDERNUMBER'
 
                 default:
                     return;
@@ -400,36 +508,45 @@
             if(!Utils.logEnabled) return;
             console.log(message);
         }
+        static JSON(obj){
+            return JSON.stringify(obj,null,2);
+        }
+        static JSON2Log(obj){
+            Utils.log(Utils.JSON(obj));
+        }
     }
 </script>
 <script>
     $(document).ready(function () {
-        showTypeSelect();
+        google.script.run.withSuccessHandler(recordSheetHeaders).getHeaderColumns();
     });
-    function isImportType(typeToCheck){
-        return this.inputType.toUpperCase()===typeToCheck.toUpperCase();
-    }
-    function setInputType(type){
-        inputType=type;
-        console.log(`Setting inputType to ${inputType}`);
-        if (type==='avir'){
-            $('#switch_QT').prop("checked",false);
 
-        } else {
-            $('#switch_AVIR').prop("checked",false);
-        }
+    /* Setup */
+    function recordSheetHeaders(sheetHeadings){
+        console.clear();
+        SheetHeadings = Utils.NormalizeSheetHeadings(sheetHeadings);
+        if (SheetHeadings) showTypeSelect();
     }
     function showTypeSelect(){
         console.log(`showTypeSelect()`);
-        $('.typeSelect').show();
+        $('#importTypeSelectContainer').show();
     }
+
+    /* Step 1 */
     function showPrework(){
         console.log(`showPrework()`);
-        $('#showTypeSelectContainer').hide();
+        $('#importTypeSelectContainer').hide();
         if (this.isImportType('qt'))
             $('.qtProcess').show();
         else 
             $('.avirProcess').show();
+    }
+    function isImportType(typeToCheck){
+        return this.inputType.toUpperCase()===typeToCheck.toUpperCase();
+    }
+    function getData(){
+        $('.preworkProcess').hide();
+        google.script.run.withSuccessHandler(showImport).getAllASINS();
     }
     function showImport(ASINS) {
         sheetASINS = ASINS;
@@ -442,85 +559,24 @@
 
         $('.importProcess').show();
     }
-    function getData(){
-        $('.preworkProcess').hide();
-        google.script.run.withSuccessHandler(showImport).getAllASINS();
-    }
-    let USDollar = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-    });
-    function toggleChecks(selector) {
-        var totalChecks = $(`${selector} tr td input.asinCheckbox`).length;
-        var totalChecked = $(`${selector} tr td input.asinCheckbox:checked`).length;
-        if (!totalChecked) totalChecked = 0;
-        var makeChecked = ((totalChecked / totalChecks) < 0.5);
-        $(`${selector} tr td input.asinCheckbox`).prop("checked", makeChecked);
-    }
-    function selectAll() {
-        $("#productsTable input[type=checkbox]").prop('checked', $(this).prop('checked'));
-    }
-    function populateImage(imgData) {
-        $(`#img_${imgData.ASIN}`).attr('src', imgData.src);
-        data.filter(function (item) {
-            return item.ASIN == imgData.ASIN;
-        }).map(function (item) {
-            item.Image = imgData.src;
-        });
-    }
+
+    /* STEP 2 */
     function parseData(){
         $('.importProcess').hide();
         $('.parseProcess').show();
         var endLineDelimiter=isImportType('qt')?'|***|\n':'\n';
         var parsedData=Utils.TableToObjectArray($('#bulkinput').val(),endLineDelimiter);
+        Utils.log(`parsedData=${Utils.JSON(parsedData)}`);
         data=parsedData.items;
         headings=parsedData.headings;
-        console.clear();
-        Utils.log(`data=${JSON.stringify(data,null,2)}`);
-        splitItems();
-    }
-    function orig_parseData() {
-        $('.importProcess').hide();
-        $('.parseProcess').show();
-        var l = -1;
-        var fileLines = $('#bulkinput').val().split('\n').map((line) => line.split('\t'));
-        fileLines.forEach(function (fileLine) {
-            l++;
-            if (!headings && fileLine[0].trim() == "Order Number") {
-                headings = ["Select", "Image"].concat(fileLine);
-                var headingIndex = -1;
-                headings.forEach(function (heading) {
-                    headingIndex++;
-                    if (heading.toLowerCase() == "asin") ASINIndex = headingIndex - 2;
-                });
-                console.log(`    headings=${JSON.stringify(headings).replaceAll(',',',\n')}`);
-            } else if (headings) {
-                var element = -1;
-                var item = {};
-                var ASIN;
-                if (ASINIndex && fileLine[ASINIndex]) {
-                    ASIN = fileLine[ASINIndex];
-                    headings.forEach(function (heading) {
-                        if (heading.toLowerCase() == "select")
-                            item[heading] = false;
-                        else if (heading.toLowerCase() == "image")
-                            item[heading] = ""
-                        else {
-                            element++;
-                            item[heading] = fileLine[element];
-                        }
-                    });
-                    data.push(item);
-                }
-            }
-        });
+        Utils.log(`data=${Utils.JSON(data)}`);
         splitItems();
     }
     function splitItems() {   // Between existing and new
         var newItems = [];
         var foundItems = [];
         data.forEach(function (item) {
-            Utils.log(`splitItems() checking\n${JSON.stringify(item,null,2)}`);
+            Utils.log(`splitItems() checking\n${Utils.JSON(item)}`);
             var found = sheetASINS.filter(function (asin) {
                 return asin && asin.ASIN && asin.ASIN.toLowerCase() === item.ASIN.value.toLowerCase();
             });
@@ -551,80 +607,54 @@
         }
         
     }
-
-    function orig_splitItems() {   // Between existing and new
-        var newItems = [];
-        var foundItems = [];
-        data.forEach(function (item) {
-            var found = sheetASINS.filter(function (asin) {
-                return asin && asin.toLowerCase() === item.ASIN.toLowerCase();
-            });
-            if (found.length > 0) {
-                foundItems.push(item);
-            }
-            else
-                newItems.push(item);
-        });
-        var showCount=0;
-        if (newItems&&newItems.length>0){
-            renderData(newItems, "#newDataTable");
-            $('#newImportHeading').text(`New  Import Items (${newItems.length} items)`);
-            $('#newImportContainer').show();
-            showCount++;
-        }
-
-        if (foundItems&&foundItems.length>0){
-            renderData(foundItems, "#foundDataTable");
-            $('#foundImportHeading').text(`Found Import Items (${foundItems.length} items)`);
-            $('#foundImportContainer').show();
-            showCount++;
-        }
-        if (showCount==1){
-            $('#newDataTable').height($('#newDataTable').height()*2.5);
-            $('#foundDataTable').height($('#foundDataTable').height()*2.5);
-        }
+    function renderData(splitData, selector) {
+        var headingCheckboxes=(selector.toUpperCase()==='#FOUNDDATATABLE');
+        var justTheASINS=(selector.toUpperCase()==='#STATUSDATATABLE');
+        var tableHtml = `${getTableHeading(headingCheckboxes,justTheASINS)}`;
         
+        //var imgASINS=[];
+        splitData.forEach(function (item) {
+            tableHtml = `${tableHtml}${getTableItem(item,justTheASINS)}`;
+            //imgASINS.push(item.ASIN.value);
+        });
+        tableHtml = `${tableHtml}${getTableFooter()}`;
+        $(selector).append(tableHtml);
     }
-
+    function getSelectedFoundColumnsClean(){
+        var selectedFoundColumns=getSelectedFoundColumns();
+        var columns= selectedFoundColumns.map(function(column){ return column.replaceAll('colchk_','');})
+        console.log(`getSelectedFoundColumnsClean()=${columns}`);
+        return columns;
+    }
+    function getSelectedFoundColumns(){
+        return $('div#foundDataTable input[id^="colchk_"]:checkbox:checked').map(function(){return this.id;}).get();
+    }
     function getTableHeading(checkboxes,justTheASINS) {
         var tableHtml = '<table class="table table-stiped"><thead>';
         headings.forEach(function (heading) {
             var extra = '';
-            if (checkboxes &&
-                heading.element.toUpperCase()!=='IMAGE' &&
-                heading.element.toUpperCase()!=='SELECT') {
-                extra=`<br/><input class='tiny' type="checkbox" id='colchk_${heading.element}'/>`;
+            var checkbox='';
+            var element=heading.sheetElement==='*'?heading.element:heading.sheetElement;
+            var sheetElement=heading.sheetElement;
+            if (checkboxes){
+                if (element==='IMAGE' ||
+                    element==='SELECT' ||
+                    element==='ASIN'){
+                        extra=`disabled`;
+                }
+                checkbox=`<br/><input class='tiny center' ${extra} type="checkbox" id='colchk_${element}'/>`;
             }
-            if (heading.sheetElement && (!justTheASINS || heading.sheetElement.toUpperCase()==='ASIN'))
-                tableHtml = `${tableHtml}<th scope='col'>${heading.sheetElement==='*'?heading.element:heading.sheetElement}${extra}</th>`;
+            if ((!justTheASINS && sheetElement) || element==='ASIN' || element==='IMAGE' || element==='SELECT'){
+                var classStr=(element==='SELECT')?' class="center"':'';
+                if (heading.element==='SELECT' && justTheASINS) element='SAVED';
+                Utils.log(`rendering ${element} heading` );
+                tableHtml = `${tableHtml}<th scope='col'${classStr}>${element}${checkbox}</th>`;
+            }
         });
         tableHtml = `${tableHtml}</tr></thead><tbody>`;
         return tableHtml;
-    }
-    function orig_getTableHeading(checkboxes,justTheASINS) {
-        var tableHtml = '<table class="table table-stiped"><thead>';
-        headings.forEach(function (heading) {
-            var extra = '';
-            if (checkboxes &&
-                heading.toUpperCase()!=='IMAGE' &&
-                heading.toUpperCase()!=='SELECT') {
-                extra=`<br/><input class='tiny' type="checkbox" id='colchk_${heading}'/>`;
-            }
-            if (!justTheASINS || heading.toUpperCase()==='ASIN')
-                tableHtml = `${tableHtml}<th scope='col'>${heading}${extra}</th>`;
-        });
-        tableHtml = `${tableHtml}</tr></thead><tbody>`;
-        return tableHtml;
-    }
-    function checked() {
-        if ($('div#newDataTable input:checkbox:checked')) {
-            ('#btnImport').removeClass('disabled');
-        } else {
-            ('#btnImport').addClass('disabled');
-        }
     }
     function getTableItem(item,justTheASINS) {
-        console.clear();
         Utils.log(`getTableItem(\n${JSON.stringify(item,null,2)},${justTheASINS})`);
         Utils.log(`     headings(\n${JSON.stringify(headings,null,2)}`);
         var foundImgWidth = 25;
@@ -634,22 +664,22 @@
             element=heading.element;
             sheetHeading=heading.sheetElement;
             if (sheetHeading){
-                if (element == "SELECT" || element == "SAVED") {
+                if (element==="SELECT") {
                     var extra = "";
-                    if (element == "SAVED") extra = "readonly";
-                    tableHtml = `${tableHtml}<td class="center"><input onclick="checked" class='asinCheckbox' type='checkbox' id='chk_${item.ASIN.value}' ${extra}></td>`;
+                    if (justTheASINS) extra = "readonly";
+                    tableHtml = `${tableHtml}<td class="center"><input onclick='itemChecked()' class='asinCheckbox' type='checkbox' id='chk_${item.ASIN.value}' ${extra}></td>`;
                 } else if (element == "IMAGE") {
-                    if (!item.Image || item.Image.length == 0) item.Image = getProductImageURL(item.ASIN.value);
-                    tableHtml = `${tableHtml}<td><img style='width:${foundImgWidth}px' id='img_${item.ASIN.value}' src="${item.Image}"/></td>`;
+                    if (!item.IMAGE || !item.IMAGE.value) item.IMAGE.value = getProductImageURL(item.ASIN.value);
+                    tableHtml = `${tableHtml}<td><img style='width:${foundImgWidth}px' id='img_${item.ASIN.value}' src="${item.IMAGE.value}"/></td>`;
                 } else {
-                    var value = item[heading.sheetElement].value;
+                    var value = item[heading.sheetElement]?.value;
                     if (heading.sheetElement == "ITEMNAME" ||
                         heading.sheetElement == "NOTES" ||
                         heading.sheetElement == "TITLE" ||
-                        heading.sheetElement == "DETAI") {
+                        heading.sheetElement == "DETAIL") {
                         if (value.length > 50) value = `${value.substring(0, 50)}...`;
                     }
-                    if (!justTheASINS || heading.sheetElement==='ASIN')
+                    if (!justTheASINS || heading.sheetElement==='ASIN' || heading.sheetElement==='IMAGE' || heading.sheetElement==='SELECT')
                         tableHtml = `${tableHtml}<td>${value}</td>`;
                 }
             }
@@ -657,61 +687,15 @@
         tableHtml = `${tableHtml}</tr>`;
         return tableHtml;
     }
-    function orig_getTableItem(item,justTheASINS) {
-        var foundImgWidth = 25;
-        var tableHtml = `<tr>`;
-        headings.forEach(function (heading) {
-            if (heading.toLowerCase() == "select" || heading.toLowerCase() == "saved") {
-                var extra = "";
-                if (heading.toLowerCase() == "saved") extra = "readonly";
-                tableHtml = `${tableHtml}<td class="center"><input onclick="checked" class='asinCheckbox' type='checkbox' id='chk_${item.ASIN.value}' ${extra}></td>`;
-            } else if (heading.toLowerCase() == "image") {
-                if (!item.Image || item.Image.length == 0) item.Image = getProductImageURL(item.ASIN.value);
-                tableHtml = `${tableHtml}<td><img style='width:${foundImgWidth}px' id='img_${item.ASIN.value}' src="${item.Image}"/></td>`;
-            } else {
-                var value = item[heading].value;
-                if (heading.toLowerCase() == "product name" ||
-                    heading.toLowerCase() == "notes" ||
-                    heading.toLowerCase() == "title" ||
-                    heading.toLowerCase() == "detail") {
-                    if (value.length > 50) value = `${value.substring(0, 50)}...`;
-                }
-                if (!justTheASINS || heading.toUpperCase()==='ASIN')
-                    tableHtml = `${tableHtml}<td>${value}</td>`;
-            }
-        });
-        tableHtml = `${tableHtml}</tr>`;
-        return tableHtml;
+    function getTableFooter() {
+        return `</tbody></table>`;
     }
     function getProductImageURL(asin) {
         return "https://ws-na.amazon-adsystem.com/widgets/q?_encoding=UTF8&MarketPlace=US&ASIN=" + asin + "&ServiceVersion=20070822&ID=AsinImage&WS=1&Format=_SL150_";
     }
 
-    function getTableFooter() {
-        return `</tbody></table>`;
-    }
 
-    function renderData(splitData, selector) {
-        var headingCheckboxes=(selector.toUpperCase()==='#FOUNDDATATABLE');
-        var justTheASINS=(selector.toUpperCase()==='#STATUSDATATABLE');
-        var tableHtml = `${getTableHeading(headingCheckboxes,justTheASINS)}`;
-        //var imgASINS=[];
-        splitData.forEach(function (item) {
-            tableHtml = `${tableHtml}${getTableItem(item,justTheASINS)}`;
-            //imgASINS.push(item.ASIN.value);
-        });
-        tableHtml = `${tableHtml}${getTableFooter()}`;
-        $(selector).append(tableHtml);
-    }
-    function getSelectedFoundColumns(){
-        return $('div#foundDataTable input[id^="colchk_"]:checkbox:checked').map(function(){return this.id;}).get();
-    }
-    function getSelectedFoundColumnsClean(){
-        var selectedFoundColumns=getSelectedFoundColumns();
-        var columns= selectedFoundColumns.map(function(column){ return column.replaceAll('colchk_','');})
-        console.log(`getSelectedFoundColumnsClean()=${columns}`);
-        return columns;
-    }
+    /* STEP 3 */
     function confirmFoundColumns(){
         var foundsSelectedCount=$('div#foundDataTable input[id^="chk_"]:checkbox:checked').length;
         var colsSelected=getSelectedFoundColumns();
@@ -736,6 +720,8 @@
         google.script.run.withSuccessHandler(importItems).nextNewRow();
     }
     function importItems(firstRow) {
+        console.clear();
+        Utils.log(`data = (${JSON.stringify(data,null,2)})`);
         console.log(`importItems(${firstRow})`);
         $('.parseProcess').hide();
         $('.statusProcess').show();
@@ -744,64 +730,86 @@
             ASINS.push($(this).attr("id").replace('chk_', ''));
         });
         if (ASINS&&ASINS.length>0){
+            Utils.log(`     updating newDataTable ASINS (${JSON.stringify(ASINS,null,2)})`);
             updateASINS(ASINS,firstRow);
             ASINS=[];
-        } 
+        } else {
+            Utils.log(`     no ASINS selected in newDataTable`);
+        }
         $('div#foundDataTable input[id^="chk_"]:checkbox:checked').each(function (index) {
             ASINS.push($(this).attr("id").replace('chk_', ''));
         });
         if (ASINS&&ASINS.length>0){
+            Utils.log(`     updating foundDataTable ASINS (${JSON.stringify(ASINS,null,2)})`);
             updateASINS(ASINS,firstRow,getSelectedFoundColumnsClean());
+        } else {
+            Utils.log(`     no ASINS selected in foundDataTable`);
         }
     }
     function updateASINS(ASINS,firstRow,selectedColumns=undefined){
-        console.log(`updateASINS() ${ASINS.length} ASINS passed in. ${!selectedColumns?0:selectedColumns.length} selected Columns passed in.`);
+        Utils.log(`updateASINS() ${ASINS.length} ASINS passed in. ${!selectedColumns?0:selectedColumns.length} selected Columns passed in.`);
+        Utils.log(`     headings=${Utils.JSON(headings)}`);
         if (!ASINS||ASINS.length===0) return;
 
         var dataSelected = data.filter(function (item) {
-            return ASINS.indexOf(item.ASIN) >= 0;
+            return ASINS.indexOf(item.ASIN.value) >= 0;
         })
         var dataToSave = [];
-        dataSelected.forEach(function (data) {
+        dataSelected.forEach(function (selected) {
             var newData = {};
             headings.forEach(function (heading) {
-                if (heading.toUpperCase() === "SELECT"){
-                    newData.Saved = false;
-                } else {
-                    if (!selectedColumns || selectedColumns.length===0 || selectedColumns.filter(function(column){return column.toUpperCase()===heading.toUpperCase();}).length!==0){
-                        newData[heading] = data[heading];
-                        console.log(`     newData[${heading}] assigned.`);
-                    } else {
-                        console.log(`     did not find '${heading.toUpperCase()}' within ${JSON.stringify(selectedColumns)}`);
+                //if (heading.element === "SELECT"){
+                //    newData.SELECT = {value:false};
+                //} else {
+                    var element = heading.sheetElement=="*"?heading.element:heading.sheetElement;
+                    if(element){
+                        if (!selectedColumns || selectedColumns.length===0 || selectedColumns.filter(function(column){return column.toUpperCase()===element;}).length!==0){
+                            newData[element] = selected[element];
+                            console.log(`     newData[${element}] assigned (${Utils.JSON(selected[element])}).`);
+                        } else {
+                            console.log(`     did not find '${element}' within ${JSON.stringify(selectedColumns)}`);
+                        }
                     }
-                }
+                //}
             });
+            Utils.log(`newData = ${JSON.stringify(newData,null,2)}`);
+            if(selectedColumns && selectedColumns.length>0){
+                newData.SELECT = selected.SELECT;
+                newData.IMAGE = selected.IMAGE;
+                newData.ASIN = selected.ASIN;
+            }
             dataToSave.push(newData);
         });
-        headings[0] = 'Saved';
+        Utils.log(`dataToSave=${Utils.JSON(dataToSave)}`);
+        //headings[0] = 'Saved';
         renderData(dataToSave, "#statusDataTable");
 
+        var batchSize=20;
+        if (dataToSave.length<batchSize){
+            batchSize=1;
+        }
         console.log('\n\n\n\n****************************');
         //var row = firstRow - 1;
         //dataToSave.forEach(function (item) {
             //row++;
-            //console.log(`google.script.run.withSuccessHandler(markAsSaved).addItemToSheet(${item.ASIN}) at row ${row}`);
-            addItemToSheet({
+            //console.log(`google.script.run.withSuccessHandler(markAsSaved).addItemsToSheet(${item.ASIN}) at row ${row}`);
+            addItemsToSheet({
                 items:dataToSave,
-                row:firstRow,
+                //row:firstRow,
                 index:0,
-                batchSize:20
+                batchSize:batchSize
             });
         //});
-        console.log(`refresh data...`);
+        Utils.log(`refresh data...`);
         google.script.run.flushAll();
-        console.log(`refreshed`);
-        console.log('****************************\n\n\n\n');
+        Utils.log(`refreshed`);
+        Utils.log('****************************\n\n\n\n');
     }
-    function addItemToSheet(results){
+    function addItemsToSheet(results){
         console.log('\n\n\n****************************');
-        console.log(`addItemToSheet()\n`);
-        console.log(`     items (ASINS): ${results.items.filter(function(item){return item.ASIN;})}\n`);
+        console.log(`addItemsToSheet()\n`);
+        console.log(`     items (ASINS): ${Utils.JSON(results.items.map(function(item){return item.ASIN.value;}))}\n`);
+        console.log(`     items length: ${results.items.length}\n`);
         console.log(`     batchSize:${results.batchSize}\n`);
         console.log(`     index:${results.index}\n`);
         console.log(`     row:${results.row}\n`);
@@ -811,15 +819,15 @@
         if (results.savedASINSStartIndex||results.savedASINSStartIndex===0){
             for(var i=results.savedASINSStartIndex;i<=results.savedASINSEndIndex;i++){
                 console.log(`markAsSaved for index #${i}`);
-                console.log(`     ASIN=${results.items[i].ASIN})`);
-                markAsSaved(results.items[i].ASIN);
+                console.log(`     ASIN=${results.items[i].ASIN.value})`);
+                markAsSaved(results.items[i].ASIN.value);
             }
         } 
-        if (results.index<results.items.length-1) {
-            console.log(`calling addItemToSheet on server`);
-            google.script.run.withSuccessHandler(addItemToSheet).addItemToSheet(results);
+        if (results.index<results.items.length) {
+            console.log(`calling addItemsToSheet on server`);
+            google.script.run.withSuccessHandler(addItemsToSheet).addItemsToSheet(results);
         } else {
-            console.log(`done with addItemToSheet() batching.`);
+            console.log(`done with addItemsToSheet() batching.`);
         }
     }
     function markAsSaved(asin) {
@@ -840,6 +848,40 @@
             setProgress(100);
         }
     }
+
+
+    /* UI */
+    function setInputType(type){
+        inputType=type;
+        console.log(`Setting inputType to ${inputType}`);
+        if (type==='avir'){
+            $('#switch_QT').prop("checked",false);
+
+        } else {
+            $('#switch_AVIR').prop("checked",false);
+        }
+    }
+    let USDollar = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+    });
+    function toggleChecks(selector) {
+        var totalChecks = $(`${selector} tr td input.asinCheckbox`).length;
+        var totalChecked = $(`${selector} tr td input.asinCheckbox:checked`).length;
+        if (!totalChecked) totalChecked = 0;
+        var makeChecked = ((totalChecked / totalChecks) < 0.5);
+        $(`${selector} tr td input.asinCheckbox`).prop("checked", makeChecked);
+    }
+    function selectAll() {
+        $("#productsTable input[type=checkbox]").prop('checked', $(this).prop('checked'));
+    }
+    function itemChecked() {
+        if ($('div input[id^="chk_"]:checkbox:checked').length>0) {
+            $('#btnImport').removeClass('disabled');
+        } else {
+            $('#btnImport').addClass('disabled');
+        }
+    }
     function setProgress(n) {
         console.log(`setProgress(${n})`);
         $('#importProgress').css('width', `${n}%`).text(`${n}%`);
@@ -848,8 +890,11 @@
         google.script.host.close();
     }
 
+    /* Globals */
     var data = [];
     var headings;
+    var ExpectedSheetHeadingCount=20;
+    var SheetHeadings;
     var sheetASINS = [];
     var inputType='AVIR';
     var qtBulkInputPlaceholder=`Example:\n\nStatus\tOrdered\tShipped\tReceived\tMoldy/ Overdue\tASIN\tItem Name\tCategory\tETV\tMSRP\tLow Est. Tax\tHigh Est. Tax\tProd URL\tRev URL\t"Submitted\n`;

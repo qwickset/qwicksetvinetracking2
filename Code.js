@@ -219,12 +219,13 @@ function getHeaderColumns(upperCase=false){
   var headerRange = sheet.getRange("1:1");
   var headerRangeValues = headerRange.getValues()[0];
   var headers=[]
-  headerRangeValues.every(function(value){
+  headerRangeValues.every(function(value,index){
     if (!value) return false; //bail, found a gap
-    if (upperCase)
-      headers.push(value.toUpperCase());
-    else
-      heacers.push(value);
+    var headerValue=upperCase?value.toUpperCase():value;
+    headers.push({
+      value:headerValue,
+      columnIndex:index
+    });
     return true;
   });
   return headers;
@@ -269,48 +270,39 @@ function nextNewRow(){
   */
 }
 
-function addItemToSheet(results){
-  var item=results.items[results.index];
-  var row=results.row-1;
+function addItemsToSheet(results){
   var stopIndex = Math.min(results.index+results.batchSize,results.items.length-1);
   console.log(`addItemToSheet() from ${results.index} to ${stopIndex} [results.items.length=${results.items.length}]`);
-  for(var i=results.index;i<=stopIndex;i++){
-    var item=results.items[i];
-    row++;
-    console.log(`     #${i} ASIN:${item.ASIN} row:${row}`);
-    trySet(row,1,item,"Order Number");
-    trySet(row,2,item,"Order Date");
-    trySet(row,3,item,"Shipped Date");
-    trySet(row,4,item,"Received Date");
-    trySet(row,5,item,"Cancelled Date");
-    trySet(row,6,item,"ASIN");
-    trySet(row,7,item,"Product Name");
-    trySet(row,8,item,"Category");
-    trySet(row,9,item,"Estimated Tax Value");
-    trySet(row,10,item,"MSRP");
-    trySet(row,11,item,"Submitted Date");
-    trySet(row,12,item,"Accepted Date");
-    trySet(row,13,item,"Rejected Date");
-    trySet(row,14,item,"Canceled Date");
-    trySet(row,15,item,"Stars");
-    trySet(row,16,item,"Photos");
-    trySet(row,17,item,"Video");
-    trySet(row,18,item,"Title");
-    trySet(row,19,item,"Detail");
-    trySet(row,20,item,"Notes");
-  }
+  console.log(`     results=${JSON.stringify(results,null,2)}`);
+  trySet(results.items);
 
   return {
     items:results.items,
     batchSize:results.batchSize,
-    index:stopIndex,
-    row:row+1,
+    index:stopIndex+1,
     savedASINSStartIndex:results.index,
     savedASINSEndIndex:stopIndex
   };
 }
 
-function trySet(row,column,item,field){
+function trySet(items){
+  var sheet = getSheetByName("Data");
+  items.forEach(function(item){
+    console.log(`trySet(${JSON.stringify(items,null,2)})`);
+    for(const prop in item){
+      console.log(`     checking prop ${prop} (${JSON.stringify(item[prop])})`);
+      if(item[prop].hasOwnProperty('value')){
+        console.log(`          has value property`);
+        if(item[prop].value){
+          console.log(`sheet.getRange(${item.row}, ${item.column}).setValue('${item[prop].value}');`);
+          sheet.getRange(item.row, item.columnIndex).setValue(item[prop].value);
+        } 
+      }
+    }
+  })
+}
+
+function orig_trySet(row,column,item,field){
   var sheet = getSheetByName("Data");
   var value=item[field];
   if (value) sheet.getRange(row, column).setValue(value);
