@@ -230,23 +230,22 @@
 </body>
 <script>
     class ImportItemElement{
-        _value;
-        _importElement;
-        _columnIndex;
+        value;
+        importElement;
+        columnIndex;
         constructor(value,importElement,columnIndex){
-            this._value=value;
-            this._importElement=importElement;
-            this._columnIndex=columnIndex;
-            console.log(`ImportItemElement(${value},${importElement},${columnIndex})`);
+            this.value=value;
+            this.importElement=importElement;
+            this.columnIndex=columnIndex;
         }
         get value(){
-            return this._value;
+            return this.value;
         }
         get importElement(){
-            return this._importElement;
+            return this.importElement;
         }
         get columnIndex(){
-            return this._columnIndex;
+            return this.columnIndex;
         }
     }
     class ImportItem{
@@ -255,7 +254,6 @@
             this._hasProps=false;
         }
         addProperty(property,value,importElement,columnIndex){
-            console.log(`ImportItems.addProperty(${property},${value},${importElement},${columnIndex})`);
             this[property]=new ImportItemElement(value,importElement,columnIndex);
             this._hasProps=true;
         }
@@ -278,17 +276,17 @@
         }
     }
     class Header{
-        _element;
-        _sheetElement;
+        element;
+        sheetElement;
         constructor(element,sheetElement){
-            this._element=element;
-            this._sheetElement=sheetElement;
+            this.element=element;
+            this.sheetElement=sheetElement;
         }
         get element(){
-            return this._element;
+            return this.element;
         }
         get sheetElement(){
-            return this._sheetElement;
+            return this.sheetElement;
         }
     }
     class Headers{
@@ -296,12 +294,8 @@
         construction(){
         }
         add(element,sheetElement){
-            console.log(`add(${element},${sheetElement})`);
             let header=new Header(element,sheetElement);
-            console.log(`     header=${JSON.stringify(header,null,2)})`);
-            console.log(`     (before push) headers=${JSON.stringify(this.headers,null,2)})`);
             this.headers.push(header);
-            console.log(`     (after push) headers=${JSON.stringify(this.headers,null,2)})`);
             return header;
         }
         get all(){
@@ -320,8 +314,10 @@
             let header=new Header(element,sheetElement);
             this.headers.unshift(header);
         }
-        prepend(headers){
-            this.headers=this.headers.concat(this.headers);
+        prepend(element,sheetElement){
+            let header=new Header(element,sheetElement);
+            this.headers=[header, ...this.headers];
+            return header;
         }
     }
     class Utils{
@@ -330,7 +326,6 @@
         static logEnabled=true;
 
         static TableToObjectArray(dataString,endLineDelimiter='\n'){
-            console.clear();
             Utils.log(`TableToObjectArray([${dataString.length} chars], '${endLineDelimiter}')`);
             var dataLines = dataString.split(endLineDelimiter).map((line) => line.split('\t'));
             var headerLines = new Headers();
@@ -356,23 +351,18 @@
                             index++;
                             var prop=headerLines.get(index);
                             if(prop&&prop.sheetElement){ //only add if sheetElement was found
-                                Utils.log(`importItem before addProperty:${Utils.JSON(importItem)}`);
                                 Utils.log(`SheetHeadings = ${Utils.JSON(SheetHeadings)}`);
                                 var columnIndex=SheetHeadings.filter(function(heading){return heading.value===prop.sheetElement;})[0].columnIndex;
-                                Utils.log(`columnIndex=${columnIndex}`);
                                 importItem.addProperty(
                                     prop.sheetElement,
                                     element,
                                     prop.element,
                                     columnIndex
                                 );
-                                Utils.log(`importItem after addProperty:${Utils.JSON(importItem)}`);
                             }
                             return true;
                         }
                     });
-                } else {
-                    Utils.log(`line skipped due to it having ${line.length} compared to headerLines having ${headerLines.len}`);
                 }
                 if(headerLines.empty){
                     if(found){
@@ -396,25 +386,17 @@
                 return true;
             });        
             let specialHeaders = new Headers();
-            specialHeaders.add('SELECT','*');
-            specialHeaders.add('IMAGE','*');
-            headerLines.prepend(specialHeaders);
+            headerLines.prepend('IMAGE','*');
+            headerLines.prepend('SELECT','*');
             importItems.all.forEach(function(item){
-                item.SELECT={
-                    value:false
-                };
-                item.IMAGE={
-                    value:''
-                };
+                item.SELECT=false;
+                item.IMAGE=getProductImageURL(item.ASIN.value);
             });
-            if (headerLines.len){
-                Utils.log(` headerLines=${JSON.stringify(headerLines).replaceAll(',',',\n')}`);
-            }
             if (importItems.len){
                 var i=0;
                 importItems.all.forEach(function(item){
                     i++;
-                    Utils.log(`importItem #${i}:${JSON.stringify(item).replaceAll('},','},\n     ')}`);
+                    Utils.log(`importItem #${i}:${item.ASIN.value}`);
                 });
             }
 
@@ -523,18 +505,15 @@
 
     /* Setup */
     function recordSheetHeaders(sheetHeadings){
-        console.clear();
         SheetHeadings = Utils.NormalizeSheetHeadings(sheetHeadings);
         if (SheetHeadings) showTypeSelect();
     }
     function showTypeSelect(){
-        console.log(`showTypeSelect()`);
         $('#importTypeSelectContainer').show();
     }
 
     /* Step 1 */
     function showPrework(){
-        console.log(`showPrework()`);
         $('#importTypeSelectContainer').hide();
         if (this.isImportType('qt'))
             $('.qtProcess').show();
@@ -550,7 +529,6 @@
     }
     function showImport(ASINS) {
         sheetASINS = ASINS;
-        //console.log(`showImport(${ASINS}`);
         $('.prework').hide();
         if (this.isImportType('qt'))
             $('#bulkinput').attr("placeholder",qtBulkInputPlaceholder);
@@ -566,22 +544,21 @@
         $('.parseProcess').show();
         var endLineDelimiter=isImportType('qt')?'|***|\n':'\n';
         var parsedData=Utils.TableToObjectArray($('#bulkinput').val(),endLineDelimiter);
-        Utils.log(`parsedData=${Utils.JSON(parsedData)}`);
         data=parsedData.items;
         headings=parsedData.headings;
-        Utils.log(`data=${Utils.JSON(data)}`);
+        console.clear();
+        Utils.log(`\n\n********************\nparseData()=\n${Utils.JSON(parsedData)}\n********************\n\n`);
         splitItems();
     }
     function splitItems() {   // Between existing and new
         var newItems = [];
         var foundItems = [];
         data.forEach(function (item) {
-            Utils.log(`splitItems() checking\n${Utils.JSON(item)}`);
             var found = sheetASINS.filter(function (asin) {
                 return asin && asin.ASIN && asin.ASIN.toLowerCase() === item.ASIN.value.toLowerCase();
             });
             if (found.length > 0) {
-                item.row=found[0].row;  //add sheet row ASIN was found at since it exists
+                item.ROW=found[0].row;  //add sheet row ASIN was found at since it exists
                 foundItems.push(item);
             }
             else
@@ -623,15 +600,16 @@
     function getSelectedFoundColumnsClean(){
         var selectedFoundColumns=getSelectedFoundColumns();
         var columns= selectedFoundColumns.map(function(column){ return column.replaceAll('colchk_','');})
-        console.log(`getSelectedFoundColumnsClean()=${columns}`);
         return columns;
     }
     function getSelectedFoundColumns(){
         return $('div#foundDataTable input[id^="colchk_"]:checkbox:checked').map(function(){return this.id;}).get();
     }
     function getTableHeading(checkboxes,justTheASINS) {
+        Utils.log(`getTableHeading()`);
         var tableHtml = '<table class="table table-stiped"><thead>';
         headings.forEach(function (heading) {
+            Utils.log(`     heading=${Utils.JSON(heading)}`);
             var extra = '';
             var checkbox='';
             var element=heading.sheetElement==='*'?heading.element:heading.sheetElement;
@@ -647,7 +625,6 @@
             if ((!justTheASINS && sheetElement) || element==='ASIN' || element==='IMAGE' || element==='SELECT'){
                 var classStr=(element==='SELECT')?' class="center"':'';
                 if (heading.element==='SELECT' && justTheASINS) element='SAVED';
-                Utils.log(`rendering ${element} heading` );
                 tableHtml = `${tableHtml}<th scope='col'${classStr}>${element}${checkbox}</th>`;
             }
         });
@@ -669,8 +646,7 @@
                     if (justTheASINS) extra = "readonly";
                     tableHtml = `${tableHtml}<td class="center"><input onclick='itemChecked()' class='asinCheckbox' type='checkbox' id='chk_${item.ASIN.value}' ${extra}></td>`;
                 } else if (element == "IMAGE") {
-                    if (!item.IMAGE || !item.IMAGE.value) item.IMAGE.value = getProductImageURL(item.ASIN.value);
-                    tableHtml = `${tableHtml}<td><img style='width:${foundImgWidth}px' id='img_${item.ASIN.value}' src="${item.IMAGE.value}"/></td>`;
+                    tableHtml = `${tableHtml}<td><img style='width:${foundImgWidth}px' id='img_${item.ASIN.value}' src="${item.IMAGE}"/></td>`;
                 } else {
                     var value = item[heading.sheetElement]?.value;
                     if (heading.sheetElement == "ITEMNAME" ||
@@ -700,7 +676,6 @@
         var foundsSelectedCount=$('div#foundDataTable input[id^="chk_"]:checkbox:checked').length;
         var colsSelected=getSelectedFoundColumns();
         var colsSelectedCount=colsSelected.length;
-        console.log(`confrirmFoundColumns()\n     foundsSelected=${foundsSelectedCount}\n     colsSelected=${colsSelectedCount}`);
         if (foundsSelectedCount>0){
             if (colsSelectedCount==0){
                 google.script.run.alert('No found columns selected to update',`${foundsSelectedCount} items selected to update but 0 columns selected to overwrite.\n\nPlease select at least one column's data to overwrite for the selected items.`, 'OK');    
@@ -712,17 +687,14 @@
     function foundContinueHandler(confirm){
         if (confirm && (confirm==='OK' || confirm==='YES')){
             getLastRow();
-        } else {
-            console.log('Canceled');
         }
     }
     function getLastRow() {
         google.script.run.withSuccessHandler(importItems).nextNewRow();
     }
     function importItems(firstRow) {
-        console.clear();
         Utils.log(`data = (${JSON.stringify(data,null,2)})`);
-        console.log(`importItems(${firstRow})`);
+        Utils.log(`importItems(${firstRow})`);
         $('.parseProcess').hide();
         $('.statusProcess').show();
         var ASINS = [];
@@ -730,20 +702,14 @@
             ASINS.push($(this).attr("id").replace('chk_', ''));
         });
         if (ASINS&&ASINS.length>0){
-            Utils.log(`     updating newDataTable ASINS (${JSON.stringify(ASINS,null,2)})`);
             updateASINS(ASINS,firstRow);
             ASINS=[];
-        } else {
-            Utils.log(`     no ASINS selected in newDataTable`);
         }
         $('div#foundDataTable input[id^="chk_"]:checkbox:checked').each(function (index) {
             ASINS.push($(this).attr("id").replace('chk_', ''));
         });
         if (ASINS&&ASINS.length>0){
-            Utils.log(`     updating foundDataTable ASINS (${JSON.stringify(ASINS,null,2)})`);
             updateASINS(ASINS,firstRow,getSelectedFoundColumnsClean());
-        } else {
-            Utils.log(`     no ASINS selected in foundDataTable`);
         }
     }
     function updateASINS(ASINS,firstRow,selectedColumns=undefined){
@@ -755,8 +721,10 @@
             return ASINS.indexOf(item.ASIN.value) >= 0;
         })
         var dataToSave = [];
+        var itemIndex=-1;
         dataSelected.forEach(function (selected) {
             var newData = {};
+            itemIndex++;
             headings.forEach(function (heading) {
                 //if (heading.element === "SELECT"){
                 //    newData.SELECT = {value:false};
@@ -764,10 +732,8 @@
                     var element = heading.sheetElement=="*"?heading.element:heading.sheetElement;
                     if(element){
                         if (!selectedColumns || selectedColumns.length===0 || selectedColumns.filter(function(column){return column.toUpperCase()===element;}).length!==0){
+                            if(selected)
                             newData[element] = selected[element];
-                            console.log(`     newData[${element}] assigned (${Utils.JSON(selected[element])}).`);
-                        } else {
-                            console.log(`     did not find '${element}' within ${JSON.stringify(selectedColumns)}`);
                         }
                     }
                 //}
@@ -777,6 +743,9 @@
                 newData.SELECT = selected.SELECT;
                 newData.IMAGE = selected.IMAGE;
                 newData.ASIN = selected.ASIN;
+                newData.ROW= selected.ROW;
+            } else {
+                newData.ROW= firstRow+itemIndex;
             }
             dataToSave.push(newData);
         });
@@ -788,11 +757,11 @@
         if (dataToSave.length<batchSize){
             batchSize=1;
         }
-        console.log('\n\n\n\n****************************');
+        console.clear();
+
         //var row = firstRow - 1;
         //dataToSave.forEach(function (item) {
             //row++;
-            //console.log(`google.script.run.withSuccessHandler(markAsSaved).addItemsToSheet(${item.ASIN}) at row ${row}`);
             addItemsToSheet({
                 items:dataToSave,
                 //row:firstRow,
@@ -800,47 +769,41 @@
                 batchSize:batchSize
             });
         //});
-        Utils.log(`refresh data...`);
         google.script.run.flushAll();
-        Utils.log(`refreshed`);
-        Utils.log('****************************\n\n\n\n');
     }
     function addItemsToSheet(results){
-        console.log('\n\n\n****************************');
-        console.log(`addItemsToSheet()\n`);
-        console.log(`     items (ASINS): ${Utils.JSON(results.items.map(function(item){return item.ASIN.value;}))}\n`);
-        console.log(`     items length: ${results.items.length}\n`);
-        console.log(`     batchSize:${results.batchSize}\n`);
-        console.log(`     index:${results.index}\n`);
-        console.log(`     row:${results.row}\n`);
-        console.log(`     savedASINSStartIndex:${results.savedASINSStartIndex}\n`);
-        console.log(`     savedASINSEndIndex:${results.savedASINSEndIndex}\n`);
+        Utils.log('\n\n\n****************************');
+        Utils.log(`addItemsToSheet()\n`);
+        Utils.log(`     items (ASINS): ${Utils.JSON(results.items.map(function(item){return item.ASIN.value;}))}\n`);
+        Utils.log(`     items length: ${results.items.length}\n`);
+        Utils.log(`     batchSize:${results.batchSize}\n`);
+        Utils.log(`     index:${results.index}\n`);
+        //Utils.log(`     row:${results.row}\n`);
+        Utils.log(`     savedASINSStartIndex:${results.savedASINSStartIndex}\n`);
+        Utils.log(`     savedASINSEndIndex:${results.savedASINSEndIndex}\n`);
 
         if (results.savedASINSStartIndex||results.savedASINSStartIndex===0){
             for(var i=results.savedASINSStartIndex;i<=results.savedASINSEndIndex;i++){
-                console.log(`markAsSaved for index #${i}`);
-                console.log(`     ASIN=${results.items[i].ASIN.value})`);
+                Utils.log(` calling markAsSaved for item=${Utils.JSON(results.items)}`);
                 markAsSaved(results.items[i].ASIN.value);
             }
         } 
-        if (results.index<results.items.length) {
-            console.log(`calling addItemsToSheet on server`);
+        if (!results.done) {
             google.script.run.withSuccessHandler(addItemsToSheet).addItemsToSheet(results);
-        } else {
-            console.log(`done with addItemsToSheet() batching.`);
         }
     }
     function markAsSaved(asin) {
+        Utils.log( `markAsSaved(${asin})`);
         var total = $('div#statusDataTable input:checkbox').length;
         var notChecked = $('div#statusDataTable input:checkbox:not(:checked)').length;
         var checked = $('div#statusDataTable input:checkbox:checked').length;
         var progress = Math.round(checked * 100 / total);
 
         setProgress(progress);
-        console.log(`ASIN ${asin} saved.`);
-        console.log(`     checked=${$(`div#statusDataTable input#chk_${asin}`).is(":checked")}`);
+        Utils.log(`ASIN ${asin} saved.`);
+        Utils.log(`     checked=${$(`div#statusDataTable input#chk_${asin}`).is(":checked")}`);
         $(`div#statusDataTable #chk_${asin}`).prop('checked', true);
-        console.log(`     checked=${$(`div#statusDataTable input#chk_${asin}`).is(":checked")}`);
+        Utils.log(`     checked=${$(`div#statusDataTable input#chk_${asin}`).is(":checked")}`);
         if ($('div#statusDataTable input:checkbox:not(:checked)').length == 0)  //check if none aren't checked, we're done
         {
             $('#btnImport').hide();
@@ -853,7 +816,6 @@
     /* UI */
     function setInputType(type){
         inputType=type;
-        console.log(`Setting inputType to ${inputType}`);
         if (type==='avir'){
             $('#switch_QT').prop("checked",false);
 
@@ -883,7 +845,6 @@
         }
     }
     function setProgress(n) {
-        console.log(`setProgress(${n})`);
         $('#importProgress').css('width', `${n}%`).text(`${n}%`);
     }
     function closeThis() {

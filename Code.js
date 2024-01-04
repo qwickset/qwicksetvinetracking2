@@ -276,10 +276,14 @@ function addItemsToSheet(results){
   console.log(`     results=${JSON.stringify(results,null,2)}`);
   trySet(results.items);
 
+  var done = stopIndex===results.items.length-1;
+  console.log(`     done? ${done}`);
+
   return {
     items:results.items,
     batchSize:results.batchSize,
     index:stopIndex+1,
+    done:done,
     savedASINSStartIndex:results.index,
     savedASINSEndIndex:stopIndex
   };
@@ -291,11 +295,14 @@ function trySet(items){
     console.log(`trySet(${JSON.stringify(items,null,2)})`);
     for(const prop in item){
       console.log(`     checking prop ${prop} (${JSON.stringify(item[prop])})`);
-      if(item[prop].hasOwnProperty('value')){
+      if(item[prop].hasOwnProperty('value') && 
+         item[prop].hasOwnProperty('columnIndex') && 
+         item.hasOwnProperty('ROW')
+        ){
         console.log(`          has value property`);
         if(item[prop].value){
-          console.log(`sheet.getRange(${item.row}, ${item.column}).setValue('${item[prop].value}');`);
-          sheet.getRange(item.row, item.columnIndex).setValue(item[prop].value);
+          console.log(`sheet.getRange(${item.ROW}, ${item[prop].columnIndex+1}).setValue('${item[prop].value}');`);
+          sheet.getRange(item.ROW, item[prop].columnIndex+1).setValue(item[prop].value);
         } 
       }
     }
