@@ -96,6 +96,7 @@
 
         #btnImport,
         #btnClose {
+            margin-top:5px;
             display: none;
         }
 
@@ -221,7 +222,7 @@
         <div id='statusDataTable'>
         </div>
         <div class="progress">
-            <div id="importProgress" class="bar" style="width: 0%;">0%</div>
+            <div id="importProgress" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
         </div>
     </div>
     <div class="right">
@@ -644,7 +645,7 @@
                 if (element==="SELECT") {
                     var extra = "";
                     if (justTheASINS) extra = "readonly";
-                    tableHtml = `${tableHtml}<td class="center"><input onclick='itemChecked()' class='asinCheckbox' type='checkbox' id='chk_${item.ASIN.value}' ${extra}></td>`;
+                    tableHtml = `${tableHtml}<td class="center"><input onclick='considerBTNImportEnablement()' class='asinCheckbox' type='checkbox' id='chk_${item.ASIN.value}' ${extra}></td>`;
                 } else if (element == "IMAGE") {
                     tableHtml = `${tableHtml}<td><img style='width:${foundImgWidth}px' id='img_${item.ASIN.value}' src="${item.IMAGE}"/></td>`;
                 } else {
@@ -682,7 +683,9 @@
             } else {
                 google.script.run.withSuccessHandler(foundContinueHandler).alert('Confirm found items update',`${foundsSelectedCount} existing sheet items will have the following columns updated:\n\n${getSelectedFoundColumnsClean().join('\n')}\n\nContinue?.`, 'YES_NO');    
             }
-        }
+        } else {
+            foundContinueHandler("OK");
+        }        
     }
     function foundContinueHandler(confirm){
         if (confirm && (confirm==='OK' || confirm==='YES')){
@@ -732,8 +735,7 @@
                     var element = heading.sheetElement=="*"?heading.element:heading.sheetElement;
                     if(element){
                         if (!selectedColumns || selectedColumns.length===0 || selectedColumns.filter(function(column){return column.toUpperCase()===element;}).length!==0){
-                            if(selected)
-                            newData[element] = selected[element];
+                            if(selected) newData[element] = selected[element];
                         }
                     }
                 //}
@@ -833,11 +835,12 @@
         if (!totalChecked) totalChecked = 0;
         var makeChecked = ((totalChecked / totalChecks) < 0.5);
         $(`${selector} tr td input.asinCheckbox`).prop("checked", makeChecked);
+        considerBTNImportEnablement();
     }
     function selectAll() {
         $("#productsTable input[type=checkbox]").prop('checked', $(this).prop('checked'));
     }
-    function itemChecked() {
+    function considerBTNImportEnablement() {
         if ($('div input[id^="chk_"]:checkbox:checked').length>0) {
             $('#btnImport').removeClass('disabled');
         } else {
